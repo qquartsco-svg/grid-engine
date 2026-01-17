@@ -1,9 +1,9 @@
 # Grid Engine
 
-**Grid Engine - 2D 공간 상태 메모리 엔진**
+**Grid Engine - 2D/3D 공간 상태 메모리 엔진**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/qquartsco-svg/grid-engine)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/qquartsco-svg/grid-engine)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/qquartsco-svg/grid-engine)
 
 **English**: [README_EN.md](README_EN.md)
@@ -12,10 +12,14 @@
 
 ## 🎯 무엇을 하는가
 
-**Grid Engine**은 Ring ⊗ Ring 구조로 2D 공간 위치 상태를 안정적으로 유지하는 엔진입니다.
+**Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D 공간 위치 상태를 안정적으로 유지하는 엔진입니다.
 
-**핵심 구조**: Grid = Ring ⊗ Ring (직교 결합)
-- X, Y 방향 각각 독립적인 Ring Attractor
+**핵심 구조**:
+- **2D**: Grid = Ring X ⊗ Ring Y (직교 결합)
+- **3D**: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z (3차원 확장) ✨ NEW
+
+**구성 요소**:
+- X, Y, Z 방향 각각 독립적인 Ring Attractor
 - 위상(phase) 기반 내부 상태
 - 좌표(coordinate) 기반 외부 표현
 
@@ -27,8 +31,10 @@
 **뉴턴 제2법칙과의 연관성**:
 - Grid Engine은 **뉴턴 제2법칙 (F = ma)**을 위상 공간에 구현한 물리 기반 제어 엔진입니다.
 - 경로 통합(Path Integration)을 통해 뉴턴 역학의 이산화된 형태를 구현합니다.
-- 물리적 일관성 보장: `v(t+Δt) = v(t) + a(t)·Δt` (속도 업데이트), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (위치 업데이트)
+- **2D**: `v(t+Δt) = v(t) + a(t)·Δt`, `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²`
+- **3D**: `v(t+Δt) = v(t) + a(t)·Δt` (3축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (3축) ✨ NEW
 - 상세 설명: [docs/NEWTONS_LAW_CONNECTION.md](docs/NEWTONS_LAW_CONNECTION.md) 참조
+- 뉴턴 3법칙 분석: [docs/NEWTONS_3RD_LAW_ANALYSIS.md](docs/NEWTONS_3RD_LAW_ANALYSIS.md) 참조 ✨ NEW
 
 ---
 
@@ -48,6 +54,8 @@ pip install -e .
 
 ### 기본 사용법
 
+#### 2D Grid Engine
+
 ```python
 from grid_engine import GridEngine, GridInput
 
@@ -62,6 +70,23 @@ print(f"위치: ({output.x:.2f}, {output.y:.2f})")
 print(f"위상: ({output.phi_x:.2f}, {output.phi_y:.2f})")
 ```
 
+#### 3D Grid Engine ✨ NEW
+
+```python
+from grid_engine.grid_3d_engine import Grid3DEngine
+from grid_engine.types_3d import Grid3DInput
+
+# Grid 3D Engine 초기화
+engine_3d = Grid3DEngine(initial_x=0.0, initial_y=0.0, initial_z=0.0)
+
+# 3D 속도 입력으로 이동
+inp_3d = Grid3DInput(v_x=1.0, v_y=0.5, v_z=0.3)
+output_3d = engine_3d.step(inp_3d)
+
+print(f"위치: ({output_3d.x:.2f}, {output_3d.y:.2f}, {output_3d.z:.2f})")
+print(f"위상: ({output_3d.phi_x:.2f}, {output_3d.phi_y:.2f}, {output_3d.phi_z:.2f})")
+```
+
 ---
 
 ## 📁 프로젝트 구조
@@ -70,25 +95,34 @@ print(f"위상: ({output.phi_x:.2f}, {output.phi_y:.2f})")
 grid-engine/
 ├── grid_engine/              # 핵심 엔진 모듈
 │   ├── __init__.py
-│   ├── config.py            # 모든 상수/튜닝
-│   ├── types.py             # State/Input/Output/Diagnostics
-│   ├── integrator.py        # Semi-implicit Euler
-│   ├── grid_engine.py       # GridEngine (조립 + step)
-│   ├── coupling.py          # Ring ⊗ Ring 결합
-│   ├── energy.py            # 에너지 계산 (진단 전용)
+│   ├── config.py            # 2D 설정
+│   ├── config_3d.py         # 3D 설정 ✨ NEW
+│   ├── types.py             # 2D 타입
+│   ├── types_3d.py          # 3D 타입 ✨ NEW
+│   ├── integrator.py        # 2D Semi-implicit Euler
+│   ├── integrator_3d.py     # 3D Semi-implicit Euler ✨ NEW
+│   ├── grid_engine.py       # GridEngine (2D)
+│   ├── grid_3d_engine.py    # Grid3DEngine (3D) ✨ NEW
+│   ├── projector.py         # 2D 좌표 투영
+│   ├── projector_3d.py      # 3D 좌표 투영 ✨ NEW
+│   ├── coupling.py          # 위상 정규화 (공통)
+│   ├── energy.py            # 에너지 계산 (2D)
 │   └── adapters/
-│       └── ring_adapter.py  # Ring Engine 어댑터
+│       ├── ring_adapter.py  # 2D Ring Adapter
+│       └── ring_3d_adapter.py  # 3D Ring Adapter ✨ NEW
 ├── examples/                # 실행 가능한 데모 스크립트
-│   └── run_grid_basic_demo.py
+│   ├── run_grid_basic_demo.py      # 2D 기본 데모
+│   ├── run_grid_visual_demo.py     # 2D 시각화 데모
+│   └── run_grid_3d_basic_demo.py   # 3D 기본 데모 ✨ NEW
+│   └── run_grid_3d_visual_demo.py  # 3D 시각화 데모 ✨ NEW
 ├── tests/                   # 테스트 스위트
-│   ├── test_grid_engine_init.py
-│   ├── test_grid_engine_path_integration.py
-│   ├── test_grid_engine_energy_monotonic.py
-│   └── test_grid_engine_fail_safe.py
+│   ├── test_grid_engine_*.py       # 2D 테스트 (6개)
+│   └── test_grid_3d_engine_*.py    # 3D 테스트 (2개) ✨ NEW
 ├── docs/                    # 기술 문서
 │   ├── GRID_ENGINE_SPEC.md
-│   ├── GRID_ENGINE_MINIMAL_EQUATIONS.md
-│   └── GRID_ENGINE_THEORETICAL_FOUNDATION.md
+│   ├── 3D_CONCEPT_AND_EQUATIONS.md  # 3D 개념 및 수식 ✨ NEW
+│   ├── NEWTONS_3RD_LAW_ANALYSIS.md  # 뉴턴 3법칙 분석 ✨ NEW
+│   └── ...
 ├── README.md                # 이 파일 (한국어 - 메인)
 ├── README_EN.md             # 영어 버전
 ├── LICENSE                  # MIT 라이선스
@@ -104,26 +138,32 @@ grid-engine/
 
 ## 🎯 주요 기능
 
-### 1. 2D 위치 상태 유지
-- 내부 상태: 위상 벡터 \((\phi_x, \phi_y)\)
-- 외부 표현: 공간 좌표 \((x, y)\)
-- Ring Attractor 기반 안정화
+### 1. 2D/3D 위치 상태 유지
+- **2D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y)\), 외부 표현 좌표 \((x, y)\)
+- **3D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y, \phi_z)\), 외부 표현 좌표 \((x, y, z)\) ✨ NEW
+- Ring Attractor 기반 안정화 (2D: Ring X ⊗ Ring Y, 3D: Ring X ⊗ Ring Y ⊗ Ring Z)
 
 ### 2. 경로 통합 (Path Integration)
-- 속도 벡터 입력
-- 가속도 벡터 입력 (선택적)
-- 뉴턴 2법칙 완전 호환
+- 속도 벡터 입력 (2D/3D)
+- 가속도 벡터 입력 (선택적, 2D/3D)
+- 뉴턴 2법칙 완전 호환 (2D/3D)
 
 ### 3. 에너지 최소화
 - 에너지 함수 기반 안정화
 - 열역학적 안정성
 - 진단 모드 지원
 
+### 4. 3D 확장 기능 ✨ NEW
+- **3D 경로 통합**: 뉴턴 2법칙 3축 확장
+- **3D Ring 안정화**: 3개 Ring Attractor 직교 결합
+- **3D 좌표 투영**: 위상 공간 T³ = S¹ × S¹ × S¹
+- **3D 시각화**: 나선형 궤적 및 위상 공간 시각화
+
 ---
 
 ## 🔬 기술 배경
 
-### Grid = Ring ⊗ Ring
+### Grid = Ring ⊗ Ring (2D)
 
 **구조**:
 - X 방향: 독립적인 Ring Attractor
@@ -132,16 +172,41 @@ grid-engine/
 
 **수식**:
 \[
-\phi_x(t+\Delta t) = \phi_x(t) + v_x(t) \cdot \Delta t
+\phi_x(t+\Delta t) = \phi_x(t) + v_x(t) \cdot \Delta t + \frac{1}{2}a_x(t) \cdot \Delta t^2
 \]
 \[
-\phi_y(t+\Delta t) = \phi_y(t) + v_y(t) \cdot \Delta t
+\phi_y(t+\Delta t) = \phi_y(t) + v_y(t) \cdot \Delta t + \frac{1}{2}a_y(t) \cdot \Delta t^2
 \]
 
 **좌표 변환**:
 \[
 x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}
 \]
+
+### Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z ✨ NEW
+
+**구조**:
+- X, Y, Z 방향: 각각 독립적인 Ring Attractor
+- 직교 결합으로 3D 공간 표현
+- 위상 공간: T³ = S¹ × S¹ × S¹ (토러스, 3차원)
+
+**수식** (3D 확장):
+\[
+\phi_x(t+\Delta t) = \phi_x(t) + v_x(t) \cdot \Delta t + \frac{1}{2}a_x(t) \cdot \Delta t^2
+\]
+\[
+\phi_y(t+\Delta t) = \phi_y(t) + v_y(t) \cdot \Delta t + \frac{1}{2}a_y(t) \cdot \Delta t^2
+\]
+\[
+\phi_z(t+\Delta t) = \phi_z(t) + v_z(t) \cdot \Delta t + \frac{1}{2}a_z(t) \cdot \Delta t^2
+\]
+
+**좌표 변환** (3D):
+\[
+x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}, \quad z = \phi_z \cdot \frac{L_z}{2\pi}
+\]
+
+**상세 설명**: [docs/3D_CONCEPT_AND_EQUATIONS.md](docs/3D_CONCEPT_AND_EQUATIONS.md) 참조
 
 ---
 
@@ -152,13 +217,18 @@ x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}
 - `docs/GRID_ENGINE_MINIMAL_EQUATIONS.md` - 최소 수식 세트
 - `docs/GRID_ENGINE_THEORETICAL_FOUNDATION.md` - 이론적 기초
 - `docs/NEWTONS_LAW_CONNECTION.md` - **뉴턴 제2법칙과의 연관성** (상세 설명)
+- `docs/3D_CONCEPT_AND_EQUATIONS.md` - **3D 개념 및 수식** ✨ NEW
+- `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석** ✨ NEW
 
 ### 사용 가이드
 - `README.md` (한국어 - 메인)
 - `README_EN.md` (영어)
 
 ### 예제
-- `examples/` - 사용 예제 코드
+- `examples/run_grid_basic_demo.py` - 2D 기본 데모
+- `examples/run_grid_visual_demo.py` - 2D 시각화 데모
+- `examples/run_grid_3d_basic_demo.py` - 3D 기본 데모 ✨ NEW
+- `examples/run_grid_3d_visual_demo.py` - 3D 시각화 데모 (나선형 궤적) ✨ NEW
 
 ---
 
@@ -220,8 +290,8 @@ pytest tests/test_grid_engine_init.py -v
 ---
 
 **Last Updated**: 2026-01-20  
-**Version**: v0.1.1  
-**Status**: Alpha (제품화 준비 완료) ✅  
+**Version**: v0.2.0 (3D 확장 완료) ✨  
+**Status**: Alpha (2D/3D 제품화 준비 완료) ✅  
 **Author**: GNJz  
 **Made in GNJz**
 

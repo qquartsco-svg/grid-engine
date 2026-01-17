@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-01-20
+
+### Added
+- **3D Grid Engine**: Complete 3D spatial state memory engine ✨
+  - `Grid3DEngine`: Ring X ⊗ Ring Y ⊗ Ring Z structure
+  - `types_3d.py`: Grid3DState, Grid3DInput, Grid3DOutput, Grid3DConfig
+  - `config_3d.py`: 3D configuration with Z-axis settings
+  - `integrator_3d.py`: 3D path integration (Newton's 2nd law 3D extension)
+  - `projector_3d.py`: 3D coordinate projection (phase ↔ coordinate conversion)
+  - `ring_3d_adapter.py`: 3D Ring Adapter (3 independent Ring Attractors)
+- **3D Tests**: Comprehensive test suite for 3D functionality
+  - `test_grid_3d_engine_init.py`: 5 initialization tests (all passing)
+  - `test_grid_3d_engine_path_integration.py`: 4 path integration tests
+  - Total: 9 new 3D tests (35 tests total: 26 2D + 9 3D)
+- **3D Demos**: Visual demonstrations of 3D capabilities
+  - `run_grid_3d_basic_demo.py`: Basic 3D demo with phase/coordinate/velocity output
+  - `run_grid_3d_visual_demo.py`: 3D visualization demo with helix trajectory
+    - 3D trajectory plot (X-Y-Z space)
+    - Phase vs time (3D)
+    - Velocity vs time (3D)
+    - Phase space trajectory (T³ projection)
+- **3D Documentation**: Comprehensive 3D concept and equation documentation
+  - `docs/3D_CONCEPT_AND_EQUATIONS.md`: 3D concepts, mathematical equations, and Ring ⊗ Ring ⊗ Ring structure
+  - `docs/NEWTONS_3RD_LAW_ANALYSIS.md`: Analysis of Newton's 3rd law (action-reaction) in Grid Engine
+  - `docs/3D_EXTENSION.md`: 3D extension roadmap and architecture
+- **Project Organization**: Enhanced project structure documentation
+  - `FOLDER_STRUCTURE.md`: Complete folder structure with 2D/3D modules
+  - `EXECUTABLE_FILES.md`: Updated with 3D demos and tests
+
+### Technical Details
+- **3D Path Integration**: Newton's 2nd law extended to 3D
+  - Formula: `v(t+Δt) = v(t) + a(t)·Δt` (3 axes)
+  - Formula: `φ(t+Δt) = φ(t) + v(t)·Δt + ½a(t)·Δt²` (3 axes)
+  - Physical consistency: All calculations use `dt_s = dt_ms / 1000.0`
+- **3D Ring Stabilization**: 3 independent Ring Attractors
+  - Ring X: Stabilizes φx ∈ [0, 2π)
+  - Ring Y: Stabilizes φy ∈ [0, 2π)
+  - Ring Z: Stabilizes φz ∈ [0, 2π) ✨ NEW
+  - Orthogonal combination: T³ = S¹ × S¹ × S¹ (3D torus)
+- **3D Coordinate Projection**: Phase-to-coordinate conversion
+  - `phase_to_coordinate(phi_x, phi_y, phi_z) -> (x, y, z)`
+  - `coordinate_to_phase(x, y, z) -> (phi_x, phi_y, phi_z)`
+  - Observer pattern: Grid Engine manages phases, projector handles coordinates
+
+### Mathematical Background
+- **Phase Space**: T³ = S¹ × S¹ × S¹ (3D torus)
+- **State Equations**: dΦ/dt = v + ½a·t (3D vector)
+- **Newton's Laws**:
+  - 1st Law (Inertia): Ring self-sustaining dynamics
+  - 2nd Law (F=ma): Path integration (2D/3D)
+  - 3rd Law (Action-Reaction): Ring stabilization process (energy exchange)
+
+### Verification
+- **3D Tests**: 9 tests passing
+  - Initialization: 5 tests
+  - Path integration: 4 tests
+- **3D Demos**: Both basic and visual demos working correctly
+  - Helix trajectory generation: 200 steps
+  - Visualization output: `grid_3d_engine_trajectory.png` (449KB)
+  - Phase/coordinate/velocity updates: All normal
+
+### Documentation
+- **README.md**: Updated with 3D features, usage examples, and 2D/3D comparison
+- **CHANGELOG.md**: This entry
+- **Version badge**: Updated to v0.2.0
+
+---
+
 ## [0.1.1] - 2026-01-20
 
 ### Fixed
@@ -81,5 +149,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Last Updated**: 2026-01-20  
-**Current Version**: v0.1.1
+**Current Version**: v0.2.0 (3D Extension Complete) ✨
 
