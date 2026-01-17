@@ -166,14 +166,45 @@ def compute_diagnostics(
     dt_ratio = config.dt_ms / config.tau_ms
     is_stable = dt_ratio < config.max_dt_ratio
     
-    return GridDiagnostics(
-        energy=energy_curr,
-        energy_change=dE_dt,
-        energy_decreasing=is_decreasing,
-        stability_score=stability_score,
-        phi_x_stability=phi_x_stability,
-        phi_y_stability=phi_y_stability,
-        dt_ratio=dt_ratio,
-        is_stable=is_stable
-    )
+    # GridDiagnostics는 차원별로 다르므로, 딕셔너리로 반환
+    # 호출하는 쪽에서 적절한 타입으로 변환
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from ..dimensions.dim2d.types_2d import GridDiagnostics as GridDiagnosticsType
+        return GridDiagnosticsType(
+            energy=energy_curr,
+            energy_change=dE_dt,
+            energy_decreasing=is_decreasing,
+            stability_score=stability_score,
+            phi_x_stability=phi_x_stability,
+            phi_y_stability=phi_y_stability,
+            dt_ratio=dt_ratio,
+            is_stable=is_stable
+        )
+    else:
+        # 런타임에서는 실제 타입을 import하여 사용
+        try:
+            from ..dimensions.dim2d.types_2d import GridDiagnostics as GridDiagnosticsType
+            return GridDiagnosticsType(
+                energy=energy_curr,
+                energy_change=dE_dt,
+                energy_decreasing=is_decreasing,
+                stability_score=stability_score,
+                phi_x_stability=phi_x_stability,
+                phi_y_stability=phi_y_stability,
+                dt_ratio=dt_ratio,
+                is_stable=is_stable
+            )
+        except ImportError:
+            # fallback: 딕셔너리 반환
+            return {
+                'energy': energy_curr,
+                'energy_change': dE_dt,
+                'energy_decreasing': is_decreasing,
+                'stability_score': stability_score,
+                'phi_x_stability': phi_x_stability,
+                'phi_y_stability': phi_y_stability,
+                'dt_ratio': dt_ratio,
+                'is_stable': is_stable
+            }
 

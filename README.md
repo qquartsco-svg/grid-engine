@@ -12,12 +12,22 @@
 
 ## 🎯 무엇을 하는가
 
-**Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D/4D 공간 위치 상태를 안정적으로 유지하는 엔진입니다.
+**Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D/4D/5D 공간 위치 상태를 안정적으로 유지하는 **정밀 운동 제어 엔진**입니다.
+
+**핵심 전략**: 기존 제어 시스템을 대체하는 것이 아니라, **침투(Infiltration)**하여 효과를 극대화합니다. 독립적이지만 호환성이 좋은 모듈러 설계로, 기존 시스템과의 통합을 최대화합니다.
 
 **핵심 구조**:
 - **2D**: Grid = Ring X ⊗ Ring Y (직교 결합)
 - **3D**: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z (3차원 확장)
 - **4D**: Grid 4D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W (4차원 확장) ✨ NEW
+- **5D**: Grid 5D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B (5축 CNC/로보틱스) ✨ NEW
+
+**응용 분야**:
+- ✅ **5축 CNC 가공**: 정밀 부품 가공
+- ✅ **산업용 로봇 팔**: 정밀 제어 및 관절 제어
+- ✅ **회전축 시스템**: 로터리 엔진, 원자력 제어 등
+- ✅ **관절 제어**: 인간형 로봇, 정밀 조작
+- ✅ **손기술 (Fine Manipulation)**: 미세 부품 조립, 수술 로봇
 
 **구성 요소**:
 - X, Y, Z 방향 각각 독립적인 Ring Attractor
@@ -234,6 +244,31 @@ x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}, \qua
 
 ---
 
+## 🔒 단위 계약 (Unit Contract) ⚠️ 중요
+
+Grid Engine은 물리 법칙의 일관성을 유지하기 위해 엄격한 단위 규칙을 따릅니다.
+
+**핵심 규칙**:
+- 🔒 **엔진 내부**: 무조건 `rad`, `rad/s`, `rad/s²` (물리 법칙 일관성)
+- 🔒 **입력/출력**: `deg`, `deg/s`, `deg/s²` (I/O 편의성)
+- 🔒 **변환 지점**: `integrator` (입력), `projector` (출력)
+
+**5D (5축 CNC) 예시**:
+```python
+# 입력: deg 단위
+inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
+
+# 내부: rad 단위 (자동 변환)
+# integrator에서: v_a_rad = math.radians(0.5) = 0.0087 [rad/s]
+
+# 출력: deg 단위 (projector에서 변환)
+# output.theta_a = math.degrees(phi_a)  # [deg]
+```
+
+**상세 설명**: [docs/UNIT_CONTRACT.md](docs/UNIT_CONTRACT.md) 참조
+
+---
+
 ## 📚 문서
 
 ### 설계 문서
@@ -243,7 +278,11 @@ x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}, \qua
 - `docs/NEWTONS_LAW_CONNECTION.md` - **뉴턴 제2법칙과의 연관성** (상세 설명)
 - `docs/3D_CONCEPT_AND_EQUATIONS.md` - **3D 개념 및 수식**
 - `docs/4D_CONCEPT_AND_EQUATIONS.md` - **4D 개념 및 수식** ✨ NEW
+- `docs/5D_CONCEPT_AND_EQUATIONS.md` - **5D 개념 및 수식 (5축 CNC)** ✨ NEW
+- `docs/ROBOTICS_APPLICATION.md` - **로보틱스 응용 (정밀 운동 제어)** ✨ NEW
+- `docs/INTEGRATION_STRATEGY.md` - **통합 전략 (침투 전략)** - ⚠️ 핵심 ✨ NEW
 - `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석**
+- `docs/UNIT_CONTRACT.md` - **단위 계약 (Unit Contract)** - ⚠️ 중요 ✨ NEW
 
 ### 사용 가이드
 - `README.md` (한국어 - 메인)
