@@ -3,7 +3,7 @@
 Grid Engine의 실행 가능한 파일(데모, 테스트) 목록입니다.
 
 **Last Updated**: 2026-01-20  
-**Version**: v0.3.0-alpha  
+**Version**: v0.4.0-alpha (5D Extension Complete) ✨  
 **Author**: GNJz
 
 ---
@@ -31,7 +31,18 @@ Grid Engine의 실행 가능한 파일(데모, 테스트) 목록입니다.
 | `run_grid_4d_basic_demo.py` | 4D 기본 데모 (텍스트 출력) | `python3 examples/run_grid_4d_basic_demo.py` |
 | `run_grid_4d_visual_demo.py` | 4D 시각화 데모 (4D 그래프) | `python3 examples/run_grid_4d_visual_demo.py` |
 
-**참고**: 4D 데모는 아직 구현되지 않았습니다 (TODO).
+### 5D Grid Engine 데모 (5축 CNC/로보틱스) ✨ NEW
+
+| 파일명 | 설명 | 실행 방법 |
+|--------|------|-----------|
+| `run_grid_5d_basic_demo.py` | 5D 기본 데모 (텍스트 출력) | `python3 examples/run_grid_5d_basic_demo.py` |
+| `run_grid_5d_visual_demo.py` | 5D 시각화 데모 (5D 그래프) | `python3 examples/run_grid_5d_visual_demo.py` |
+
+### 통합 예제 ✨ NEW
+
+| 파일명 | 설명 | 실행 방법 |
+|--------|------|-----------|
+| `pid_grid_adapter_demo.py` | PID + Grid Engine 어댑터 데모 (침투 전략) | `PYTHONPATH=. python3 examples/pid_grid_adapter_demo.py` |
 
 ---
 

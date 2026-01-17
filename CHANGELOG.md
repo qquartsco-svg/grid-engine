@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0-alpha] - 2026-01-20
+
+### Added
+- **5D Grid Engine**: Complete 5D spatial/rotational state memory engine for 5-axis CNC and Robotics ✨
+  - `Grid5DEngine`: Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B structure
+  - `types_5d.py`: Grid5DState, Grid5DInput, Grid5DOutput, Grid5DConfig
+  - `config_5d.py`: 5D configuration with rotational axes (A, B) settings
+  - `integrator_5d.py`: 5D path integration (Newton's 2nd law 5D extension)
+  - `projector_5d.py`: 5D coordinate/angle projection (phase ↔ coordinate/angle conversion)
+  - `ring_5d_adapter.py`: 5D Ring Adapter (5 independent Ring Attractors)
+- **5D Tests**: Comprehensive test suite for 5D functionality
+  - `test_grid_5d_engine_init.py`: 5 initialization tests (all passing)
+  - `test_grid_5d_engine_path_integration.py`: 4 path integration tests
+  - Total: 9 new 5D tests (53 tests total: 26 2D + 9 3D + 9 4D + 9 5D)
+- **5D Demos**: Visual demonstrations of 5D capabilities
+  - `run_grid_5d_basic_demo.py`: Basic 5D demo with phase/coordinate/angle/velocity output
+  - `run_grid_5d_visual_demo.py`: 5D visualization demo with 5D trajectory
+    - 3D trajectory plot (X-Y-Z space, A/B angles as color/size)
+    - Phase vs time (5D)
+    - Velocity vs time (5D: position + rotation)
+- **Unit Contract**: Comprehensive unit contract specification and enforcement
+  - `docs/UNIT_CONTRACT.md`: Detailed unit contract documentation
+  - Code-level enforcement: `math.radians()` / `math.degrees()` forced conversion
+  - Rule: Internal operations use `rad`, I/O uses `deg` (5D rotational axes)
+- **Robotics Application**: Documentation for robotics applications
+  - `docs/ROBOTICS_APPLICATION.md`: Industrial robots, joint control, fine manipulation
+  - 5-axis CNC = Precision robot movement generalization
+- **Integration Strategy**: Infiltration strategy documentation
+  - `docs/INTEGRATION_STRATEGY.md`: Adapter patterns, middleware patterns, parallel control
+  - Compatibility design for existing control systems
+- **Integration Example**: PID + Grid Engine adapter demonstration
+  - `examples/pid_grid_adapter_demo.py`: Infiltration strategy proof of concept
+  - Comparison: PID only vs PID + Grid Engine
+- **Benchmark Plan**: Benchmark methodology definition
+  - `docs/BENCHMARK_PLAN.md`: Measurement methodology (not actual results)
+  - Defines how to measure precision, stability, performance
+
+### Technical Details
+- **5D Path Integration**: Newton's 2nd law extended to 5D
+  - Position axes: `v_x, v_y, v_z [m/s]`, `a_x, a_y, a_z [m/s²]`
+  - Rotational axes: `v_a, v_b [deg/s]` (input) → `[rad/s]` (internal), `α_a, α_b [deg/s²]` (input) → `[rad/s²]` (internal)
+  - Formula: `v(t+Δt) = v(t) + a(t)·Δt` (5 axes)
+  - Formula: `φ(t+Δt) = φ(t) + v(t)·Δt + ½a(t)·Δt²` (5 axes)
+  - Physical consistency: All calculations use `dt_s = dt_ms / 1000.0`
+- **5D Ring Stabilization**: 5 independent Ring Attractors
+  - Ring X, Y, Z: Stabilize position phases φx, φy, φz ∈ [0, 2π)
+  - Ring A, B: Stabilize rotational phases φa, φb ∈ [0, 2π) ✨ NEW
+  - Orthogonal combination: T⁵ = S¹ × S¹ × S¹ × S¹ × S¹ (5D torus)
+- **5D Coordinate/Angle Projection**: Phase-to-coordinate/angle conversion
+  - Position: `phase_to_coordinate(phi_x, phi_y, phi_z) -> (x, y, z)`
+  - Rotation: `phase_to_angle(phi_a, phi_b) -> (theta_a, theta_b)` ✨ NEW
+  - Unit conversion: Internal `rad` → Output `deg` (rotational axes)
+- **Unit Contract Enforcement**: Code-level unit conversion
+  - `integrator_5d.py`: `math.radians()` forced conversion (deg → rad)
+  - `projector_5d.py`: `math.degrees()` forced conversion (rad → deg)
+  - Prevents unit mixing errors at code level
+
+### Changed
+- **README.md**: Comprehensive updates
+  - Added dimension-by-dimension progression (2D → 3D → 4D → 5D)
+  - Added detailed applications for each dimension
+  - Added core working principles section
+  - Added limitations and future work section
+  - Clarified simulation/theoretical validation status
+  - Replaced definitive statements with potential applications
+- **Status Clarification**: Explicitly stated as simulation/theoretical validation stage
+  - No actual physical control system benchmarking yet
+  - No industrial field validation yet
+  - Performance claims are theoretical targets
+
+### Documentation
+- **5D Concepts**: `docs/5D_CONCEPT_AND_EQUATIONS.md`: 5D concepts, mathematical equations, and 5-axis CNC mapping
+- **Unit Contract**: `docs/UNIT_CONTRACT.md`: Comprehensive unit contract specification
+- **Robotics**: `docs/ROBOTICS_APPLICATION.md`: Robotics application scenarios
+- **Integration**: `docs/INTEGRATION_STRATEGY.md`: Infiltration strategy and adapter patterns
+- **Benchmark**: `docs/BENCHMARK_PLAN.md`: Benchmark methodology definition
+
+### Verification
+- **5D Tests**: 9 tests passing
+  - Initialization: 5 tests
+  - Path integration: 4 tests (including unit conversion validation)
+- **Total Tests**: 53 tests passing (26 2D + 9 3D + 9 4D + 9 5D)
+- **Unit Conversion**: All deg ↔ rad conversions validated
+
+---
+
 ## [0.3.0-alpha] - 2026-01-20
 
 ### Added
@@ -216,5 +302,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Last Updated**: 2026-01-20  
-**Current Version**: v0.2.0 (3D Extension Complete) ✨
+**Current Version**: v0.4.0-alpha (5D Extension Complete) ✨  
+**Tag**: v0.4.0-alpha.5d.complete
 
