@@ -230,13 +230,26 @@ def compare_control_methods():
     adapter = GridEngineAdapter(pid_controller)
     adapter.set_weights(0.7, 0.3)  # Phase 2: 효과 극대화
     
-    # Grid Engine 초기화
-    adapter.grid_engine.reset(
-        initial_x=initial[0],
-        initial_y=initial[1],
-        initial_z=initial[2],
-        initial_theta_a=initial[3],
-        initial_theta_b=initial[4]
+    # Grid Engine 초기화 (reset은 인자 없이 호출)
+    adapter.grid_engine.reset()
+    
+    # 초기 위치 설정 (coordinate_to_phase 사용)
+    from grid_engine.dimensions.dim5d.projector_5d import Coordinate5DProjector
+    projector = Coordinate5DProjector(adapter.grid_config)
+    phi_x, phi_y, phi_z, phi_a, phi_b = projector.coordinate_to_phase(
+        initial[0], initial[1], initial[2], initial[3], initial[4]
+    )
+    
+    # 상태 직접 설정
+    from grid_engine.dimensions.dim5d.types_5d import Grid5DState
+    adapter.grid_engine.state = Grid5DState(
+        phi_x=phi_x, phi_y=phi_y, phi_z=phi_z,
+        phi_a=phi_a, phi_b=phi_b,
+        x=initial[0], y=initial[1], z=initial[2],
+        theta_a=initial[3], theta_b=initial[4],
+        v_x=0.0, v_y=0.0, v_z=0.0, v_a=0.0, v_b=0.0,
+        a_x=0.0, a_y=0.0, a_z=0.0, alpha_a=0.0, alpha_b=0.0,
+        t_ms=0.0
     )
     
     current_enhanced = list(initial)
