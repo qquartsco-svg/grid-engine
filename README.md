@@ -82,28 +82,72 @@
 
 ---
 
-### 5D Grid Engine: 5축 CNC 및 로보틱스 제어
+### 5D Grid Engine: CNC급 정밀 움직임 → 로봇 일반 움직임 확장
 
 **구조**: `Grid 5D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B`
 
 **위상 공간**: T⁵ = S¹ × S¹ × S¹ × S¹ × S¹ (5차원 토러스)
 
-**잠재적 활용 분야** (이론 검증 단계):
+**핵심 아이디어**: 
+> **5D Grid Engine은 5축 CNC 가공기의 정밀 움직임 개념에서 시작하여, 모든 로봇의 일반 움직임에 적용 가능한 범용 정밀 제어 엔진입니다.**
+
+**구성**:
+- **위치 3축** (X, Y, Z): 선형 이동 [m]
+- **회전 2축** (A, B): 각도 회전 [deg]
+
+---
+
+#### 📊 활용 방안 분석
+
+**1. 연구용 가치** (이론 검증 단계)
+
+**학술적 의미**:
+- 🔬 **5차원 위상 공간 제어**: T⁵ 토러스에서의 상태 안정화 이론
+- 🔬 **Ring Attractor 직교 결합**: 5개 독립 Ring의 수학적 결합
+- 🔬 **뉴턴 2법칙 확장**: 5축에서의 경로 통합 (F=ma)
+- 🔬 **위상 메모리**: 외란 후 복귀 메커니즘 (수학적 모델)
+
+**연구 응용 분야**:
 - 🔬 **5축 CNC 가공**: 정밀 부품 가공, 복잡한 형상 제조 (이론적 모델)
-- 🔬 **산업용 로봇 팔**: 정밀 제어 및 관절 제어 (시뮬레이션)
 - 🔬 **회전축 시스템**: 로터리 엔진, 원자력 제어봉 (개념 검증)
-- 🔬 **관절 제어**: 인간형 로봇, 정밀 조작 (연구 단계)
-- 🔬 **손기술 (Fine Manipulation)**: 미세 부품 조립, 수술 로봇 (향후 검증 필요)
 - 🔬 **항공우주**: 위성 자세 제어, 로켓 추진 방향 제어 (이론 검증)
 
 **이론적 특징** (시뮬레이션 검증 완료):
-- 위치 3축 (X, Y, Z) + 회전 2축 (A, B)
-- 이론적 정밀도 목표: ±0.001mm (위치), ±0.01° (각도) - **실제 검증 필요**
 - Ring Attractor 기반 위치 기억 및 복귀 (수학적 모델)
 - 진동/노이즈 억제 가능성 (이론적)
 - 단위 계약 강제 (내부 rad, I/O deg) - 코드 레벨 검증 완료
 
-**⚠️ 중요**: 위 특징들은 수학적 모델 및 시뮬레이션에서 검증된 것이며, 실제 물리 시스템에서의 성능은 추가 벤치마킹 및 검증이 필요합니다.
+---
+
+**2. 세일즈 가치** (로보틱스 산업 적용)
+
+**핵심 포지셔닝**: 
+> **"신경 안정화 보조장치"** - 기존 제어 시스템을 대체하지 않고, 침투하여 효과를 극대화
+
+**산업 응용 분야**:
+- 🤖 **산업용 로봇 팔**: 정밀 제어 및 관절 안정화 (시뮬레이션)
+- 🤖 **관절 제어**: 인간형 로봇, 정밀 조작 (연구 단계)
+- 🤖 **손기술 (Fine Manipulation)**: 미세 부품 조립, 수술 로봇 (향후 검증 필요)
+- 🤖 **외란 복귀 (Contact Recovery)**: 접촉 후 원래 자세로 복귀
+- 🤖 **미세 진동 억제**: 관절의 미세 진동 안정화
+
+**세일즈 포인트**:
+- ✅ **기존 시스템 호환**: PID/MPC와 병행 운영 가능 (침투 전략)
+- ✅ **위상 메모리**: 마지막 안정 상태를 기억하여 외란 후 복귀
+- ✅ **점진적 도입**: 기존 시스템 변경 없이 플러그인 가능
+- ✅ **롤백 가능**: Grid Engine OFF 시 기존 시스템 그대로 동작
+
+**비교 지표** (이론적 목표, 실제 검증 필요):
+- 외란 후 복귀 시간: 기존 대비 30% 이상 단축 (목표)
+- 위상 오차 (RMS): Ring에 의해 상시 억제 (이론적)
+- 진동 감쇠 시간: 노이즈 저항성 향상 (이론적)
+
+**⚠️ 중요**: 위 특징들은 수학적 모델 및 시뮬레이션에서 검증된 것이며, 실제 물리 시스템에서의 성능은 추가 벤치마킹 및 검증이 필요합니다. 세일즈 가치는 실제 하드웨어 검증 후 확정됩니다.
+
+**상세 문서**:
+- 연구용: `docs/5D_CONCEPT_AND_EQUATIONS.md` - 5D 개념 및 수식
+- 세일즈용: `docs/ROBOTICS_APPLICATION.md` - 로보틱스 응용
+- 통합 전략: `docs/INTEGRATION_STRATEGY.md` - 침투 전략
 
 ---
 
@@ -116,7 +160,7 @@
   ↓ + W축
 4D (고차원)
   ↓ + A, B축 (회전)
-5D (5축 CNC/로보틱스)
+5D (CNC급 정밀 움직임 → 로봇 일반 움직임)
 ```
 
 **확장 원칙**:
@@ -213,7 +257,7 @@ print(f"위치: ({output_4d.x:.2f}, {output_4d.y:.2f}, {output_4d.z:.2f}, {outpu
 print(f"위상: ({output_4d.phi_x:.2f}, {output_4d.phi_y:.2f}, {output_4d.phi_z:.2f}, {output_4d.phi_w:.2f})")
 ```
 
-#### 5D Grid Engine (5축 CNC/로보틱스) ✨ NEW
+#### 5D Grid Engine (CNC급 정밀 움직임 → 로봇 일반 움직임) ✨ NEW
 
 ```python
 from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput
@@ -375,7 +419,7 @@ Grid Engine은 물리 법칙의 일관성을 유지하기 위해 엄격한 단�
 - 🔒 **입력/출력**: `deg`, `deg/s`, `deg/s²` (I/O 편의성)
 - 🔒 **변환 지점**: `integrator` (입력), `projector` (출력)
 
-**5D (5축 CNC) 예시**:
+**5D (로봇 관절 제어) 예시**:
 ```python
 # 입력: deg 단위
 inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
@@ -400,7 +444,7 @@ inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
 - `docs/NEWTONS_LAW_CONNECTION.md` - **뉴턴 제2법칙과의 연관성** (상세 설명)
 - `docs/3D_CONCEPT_AND_EQUATIONS.md` - **3D 개념 및 수식**
 - `docs/4D_CONCEPT_AND_EQUATIONS.md` - **4D 개념 및 수식** ✨ NEW
-- `docs/5D_CONCEPT_AND_EQUATIONS.md` - **5D 개념 및 수식 (5축 CNC)** ✨ NEW
+- `docs/5D_CONCEPT_AND_EQUATIONS.md` - **5D 개념 및 수식 (CNC급 정밀 움직임)** ✨ NEW
 - `docs/ROBOTICS_APPLICATION.md` - **로보틱스 응용 (정밀 운동 제어)** ✨ NEW
 - `docs/INTEGRATION_STRATEGY.md` - **통합 전략 (침투 전략)** - ⚠️ 핵심 ✨ NEW
 - `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석**
@@ -417,7 +461,7 @@ inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
 - `examples/run_grid_3d_visual_demo.py` - 3D 시각화 데모 (나선형 궤적)
 - `examples/run_grid_4d_basic_demo.py` - 4D 기본 데모 ✨ NEW
 - `examples/run_grid_4d_visual_demo.py` - 4D 시각화 데모 (4D 궤적) ✨ NEW
-- `examples/run_grid_5d_basic_demo.py` - 5D 기본 데모 (5축 CNC) ✨ NEW
+- `examples/run_grid_5d_basic_demo.py` - 5D 기본 데모 (로봇 관절 제어) ✨ NEW
 - `examples/run_grid_5d_visual_demo.py` - 5D 시각화 데모 (5D 궤적) ✨ NEW
 - `examples/pid_grid_adapter_demo.py` - PID + Grid Engine 통합 예제 (침투 전략) ✨ NEW
 
