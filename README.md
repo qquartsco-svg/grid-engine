@@ -16,18 +16,110 @@
 
 **핵심 전략**: 기존 제어 시스템을 대체하는 것이 아니라, **침투(Infiltration)**하여 효과를 극대화합니다. 독립적이지만 호환성이 좋은 모듈러 설계로, 기존 시스템과의 통합을 최대화합니다.
 
-**핵심 구조**:
-- **2D**: Grid = Ring X ⊗ Ring Y (직교 결합)
-- **3D**: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z (3차원 확장)
-- **4D**: Grid 4D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W (4차원 확장) ✨ NEW
-- **5D**: Grid 5D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B (5축 CNC/로보틱스) ✨ NEW
+---
 
-**응용 분야**:
-- ✅ **5축 CNC 가공**: 정밀 부품 가공
+## 📐 차원별 확장 및 활용 분야
+
+### 2D Grid Engine: 평면 운동 제어
+
+**구조**: `Grid = Ring X ⊗ Ring Y`
+
+**위상 공간**: T² = S¹ × S¹ (2차원 토러스)
+
+**활용 분야**:
+- ✅ **평면 로봇**: 2축 이동 로봇, XY 테이블
+- ✅ **평면 가공**: 2D 레이저 커팅, 플롯터
+- ✅ **항법 시스템**: 2D 위치 추적, GPS 보정
+- ✅ **게임/시뮬레이션**: 2D 캐릭터 이동, 물리 엔진
+
+**특징**:
+- 가장 기본적인 공간 상태 메모리
+- X, Y 두 방향의 독립적인 Ring Attractor
+- 경로 통합을 통한 자기 중심 위치 추적
+
+---
+
+### 3D Grid Engine: 3차원 공간 운동 제어
+
+**구조**: `Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z`
+
+**위상 공간**: T³ = S¹ × S¹ × S¹ (3차원 토러스)
+
+**활용 분야**:
+- ✅ **3축 CNC 가공**: 밀링, 드릴링, 선반
+- ✅ **3D 프린터**: 적층 제조, 정밀 출력
+- ✅ **드론/항공기**: 3D 위치 제어, 자세 안정화
+- ✅ **로봇 팔 (3축)**: 기본 팔 이동, 픽 앤 플레이스
+- ✅ **항법 시스템**: 3D SLAM, 위치 추적
+- ✅ **가상 현실**: 3D 공간 내 이동, 물리 시뮬레이션
+
+**특징**:
+- 2D에서 Z축 추가로 3차원 공간 확장
+- 높이(깊이) 제어 추가
+- 나선형 궤적 및 복잡한 3D 경로 생성 가능
+
+---
+
+### 4D Grid Engine: 4차원 확장 운동 제어
+
+**구조**: `Grid 4D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W`
+
+**위상 공간**: T⁴ = S¹ × S¹ × S¹ × S¹ (4차원 토러스)
+
+**활용 분야**:
+- ✅ **4축 CNC 가공**: 회전 테이블 포함 가공
+- ✅ **시간-공간 제어**: 시간에 따른 3D 경로 제어
+- ✅ **다중 작업 공간**: 여러 작업 영역 동시 제어
+- ✅ **고차원 제어**: 4차원 상태 공간 제어
+- ✅ **연구/실험**: 4차원 위상 공간 탐색
+
+**특징**:
+- 3D에서 W축 추가로 4차원 확장
+- 시간 또는 추가 공간 차원 제어
+- 고차원 위상 공간 탐색
+
+---
+
+### 5D Grid Engine: 5축 CNC 및 로보틱스 제어
+
+**구조**: `Grid 5D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B`
+
+**위상 공간**: T⁵ = S¹ × S¹ × S¹ × S¹ × S¹ (5차원 토러스)
+
+**활용 분야**:
+- ✅ **5축 CNC 가공**: 정밀 부품 가공, 복잡한 형상 제조
 - ✅ **산업용 로봇 팔**: 정밀 제어 및 관절 제어
-- ✅ **회전축 시스템**: 로터리 엔진, 원자력 제어 등
+- ✅ **회전축 시스템**: 로터리 엔진, 원자력 제어봉
 - ✅ **관절 제어**: 인간형 로봇, 정밀 조작
 - ✅ **손기술 (Fine Manipulation)**: 미세 부품 조립, 수술 로봇
+- ✅ **항공우주**: 위성 자세 제어, 로켓 추진 방향 제어
+
+**특징**:
+- 위치 3축 (X, Y, Z) + 회전 2축 (A, B)
+- CNC급 정밀도 (±0.001mm, ±0.01°)
+- Ring Attractor 기반 위치 기억 및 복귀
+- 진동/노이즈 억제
+- 단위 계약 강제 (내부 rad, I/O deg)
+
+---
+
+## 🔄 차원 확장 흐름도
+
+```
+2D (평면)
+  ↓ + Z축
+3D (공간)
+  ↓ + W축
+4D (고차원)
+  ↓ + A, B축 (회전)
+5D (5축 CNC/로보틱스)
+```
+
+**확장 원칙**:
+- 각 차원은 독립적인 Ring Attractor로 구성
+- 직교 결합 (⊗)으로 차원 확장
+- 동일한 수학적 구조 (뉴턴 2법칙)
+- 위상 공간 Tⁿ = S¹ × S¹ × ... × S¹ (n차원 토러스)
 
 **구성 요소**:
 - X, Y, Z 방향 각각 독립적인 Ring Attractor
@@ -45,6 +137,9 @@
 - **2D**: `v(t+Δt) = v(t) + a(t)·Δt`, `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²`
 - **3D**: `v(t+Δt) = v(t) + a(t)·Δt` (3축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (3축)
 - **4D**: `v(t+Δt) = v(t) + a(t)·Δt` (4축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (4축) ✨ NEW
+- **5D**: `v(t+Δt) = v(t) + a(t)·Δt` (5축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (5축) ✨ NEW
+  - 위치 축: `v_x, v_y, v_z [m/s]`, `a_x, a_y, a_z [m/s²]`
+  - 회전 축: `v_a, v_b [deg/s]` (입력) → `[rad/s]` (내부), `α_a, α_b [deg/s²]` (입력) → `[rad/s²]` (내부)
 - 상세 설명: [docs/NEWTONS_LAW_CONNECTION.md](docs/NEWTONS_LAW_CONNECTION.md) 참조
 - 뉴턴 3법칙 분석: [docs/NEWTONS_3RD_LAW_ANALYSIS.md](docs/NEWTONS_3RD_LAW_ANALYSIS.md) 참조
 
@@ -112,6 +207,29 @@ output_4d = engine_4d.step(inp_4d)
 
 print(f"위치: ({output_4d.x:.2f}, {output_4d.y:.2f}, {output_4d.z:.2f}, {output_4d.w:.2f})")
 print(f"위상: ({output_4d.phi_x:.2f}, {output_4d.phi_y:.2f}, {output_4d.phi_z:.2f}, {output_4d.phi_w:.2f})")
+```
+
+#### 5D Grid Engine (5축 CNC/로보틱스) ✨ NEW
+
+```python
+from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput
+
+# Grid 5D Engine 초기화
+engine_5d = Grid5DEngine(
+    initial_x=0.0, initial_y=0.0, initial_z=0.0,
+    initial_theta_a=0.0, initial_theta_b=0.0
+)
+
+# 5D 속도 입력으로 이동 (위치 + 회전)
+inp_5d = Grid5DInput(
+    v_x=1.0, v_y=0.5, v_z=0.3,  # 위치 속도 [m/s]
+    v_a=0.5, v_b=0.3  # 회전 각속도 [deg/s] (입력 단위)
+)
+output_5d = engine_5d.step(inp_5d)
+
+print(f"위치: ({output_5d.x:.2f}, {output_5d.y:.2f}, {output_5d.z:.2f}) m")
+print(f"각도: A={output_5d.theta_a:.2f}°, B={output_5d.theta_b:.2f}°")
+print(f"위상: ({output_5d.phi_x:.2f}, {output_5d.phi_y:.2f}, {output_5d.phi_z:.2f}, {output_5d.phi_a:.2f}, {output_5d.phi_b:.2f}) rad")
 ```
 
 ---
@@ -295,6 +413,9 @@ inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
 - `examples/run_grid_3d_visual_demo.py` - 3D 시각화 데모 (나선형 궤적)
 - `examples/run_grid_4d_basic_demo.py` - 4D 기본 데모 ✨ NEW
 - `examples/run_grid_4d_visual_demo.py` - 4D 시각화 데모 (4D 궤적) ✨ NEW
+- `examples/run_grid_5d_basic_demo.py` - 5D 기본 데모 (5축 CNC) ✨ NEW
+- `examples/run_grid_5d_visual_demo.py` - 5D 시각화 데모 (5D 궤적) ✨ NEW
+- `examples/pid_grid_adapter_demo.py` - PID + Grid Engine 통합 예제 (침투 전략) ✨ NEW
 
 ---
 
@@ -356,8 +477,9 @@ pytest tests/test_grid_engine_init.py -v
 ---
 
 **Last Updated**: 2026-01-20  
-**Version**: v0.3.0-alpha (4D 확장 완료) ✨  
-**Status**: Alpha (2D/3D/4D 제품화 준비 완료) ✅  
+**Version**: v0.4.0-alpha (5D 확장 완료) ✨  
+**Status**: Alpha (2D/3D/4D/5D 제품화 준비 완료) ✅  
+**Tag**: v0.4.0-alpha.5d.complete  
 **Author**: GNJz  
 **Made in GNJz**
 
