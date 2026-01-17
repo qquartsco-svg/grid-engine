@@ -22,9 +22,12 @@ Version: v0.1.1
 License: MIT License
 """
 
-from typing import Tuple
-from .types import GridState
-from .config import GridEngineConfig
+from typing import Tuple, Any
+
+# GridState와 Config는 차원별로 다르므로 Any로 타입 힌트
+# 각 차원 모듈에서 실제 타입을 전달
+GridState = Any
+GridEngineConfig = Any
 
 
 def normalize_phase(phi: float, phase_wrap: float) -> float:

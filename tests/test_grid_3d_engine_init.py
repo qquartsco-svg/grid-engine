@@ -18,9 +18,9 @@ License: MIT License
 """
 
 import pytest
-from grid_engine.grid_3d_engine import Grid3DEngine
-from grid_engine.config_3d import Grid3DConfig
-from grid_engine.types_3d import Grid3DInput
+from grid_engine.dimensions.dim3d.grid_3d_engine import Grid3DEngine
+from grid_engine.dimensions.dim3d.config_3d import Grid3DConfig
+from grid_engine.dimensions.dim3d.types_3d import Grid3DInput
 
 
 def test_grid_3d_engine_default_init():

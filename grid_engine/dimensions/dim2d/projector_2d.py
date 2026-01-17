@@ -28,8 +28,8 @@ License: MIT License
 """
 
 from typing import Tuple
-from .types import GridState
-from .config import GridEngineConfig
+from .types_2d import GridState
+from .config_2d import GridEngineConfig
 
 
 class CoordinateProjector:

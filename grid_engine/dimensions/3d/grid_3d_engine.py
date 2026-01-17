@@ -79,10 +79,10 @@ from typing import Optional
 from .config_3d import Grid3DConfig
 from .types_3d import Grid3DState, Grid3DInput, Grid3DOutput, Grid3DDiagnostics
 from .integrator_3d import semi_implicit_euler_3d
-from .coupling import normalize_phase
-from .energy import compute_diagnostics, calculate_energy
-from .adapters.ring_3d_adapter import Ring3DAdapter
-from .adapters.ring_adapter import RingAdapterConfig
+from ...common.coupling import normalize_phase
+from ...common.energy import compute_diagnostics, calculate_energy
+from ...common.adapters.ring_3d_adapter import Ring3DAdapter
+from ...common.adapters.ring_adapter import RingAdapterConfig
 from .projector_3d import Coordinate3DProjector
 
 

@@ -9,7 +9,7 @@ Created: 2026-01
 import pytest
 import numpy as np
 from grid_engine import GridEngine, GridInput, GridEngineConfig
-from grid_engine.coupling import normalize_phase, phase_to_coordinate, coordinate_to_phase
+from grid_engine.common.coupling import normalize_phase, phase_to_coordinate, coordinate_to_phase
 
 
 def test_config_validation_negative_dt():

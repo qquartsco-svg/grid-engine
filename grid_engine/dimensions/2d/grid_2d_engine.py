@@ -65,9 +65,9 @@ from typing import Optional
 from .config import GridEngineConfig
 from .types import GridState, GridInput, GridOutput, GridDiagnostics
 from .integrator import semi_implicit_euler
-from .coupling import update_state_from_phases, normalize_phase
-from .energy import compute_diagnostics, calculate_energy
-from .adapters.ring_adapter import RingAdapter, RingAdapterConfig
+from ...common.coupling import update_state_from_phases, normalize_phase
+from ...common.energy import compute_diagnostics, calculate_energy
+from ...common.adapters.ring_adapter import RingAdapter, RingAdapterConfig
 from .projector import CoordinateProjector
 
 

@@ -27,17 +27,24 @@ except ImportError:
             import sys
             import os
             # ring-attractor-engine 레포지토리 경로 추가
-            ring_engine_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-                'ring-attractor-engine'
-            )
+            # 현재 파일 위치: grid-engine/grid_engine/common/adapters/ring_3d_adapter.py
+            current_file = os.path.abspath(__file__)
+            # grid-engine 디렉토리로 이동 (4단계 상위)
+            grid_engine_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+            # release 디렉토리로 이동
+            release_dir = os.path.dirname(grid_engine_dir)
+            # ring-attractor-engine 경로
+            ring_engine_path = os.path.join(release_dir, 'ring-attractor-engine')
+            
             if os.path.exists(ring_engine_path):
                 sys.path.insert(0, ring_engine_path)
                 from hippo_memory.ring_engine import RingAttractorEngine, RingState
             else:
                 raise ImportError(
-                    "RingAttractorEngine을 찾을 수 없습니다. "
-                    "ring-attractor-engine 패키지를 설치하세요: pip install ring-attractor-engine"
+                    f"RingAttractorEngine을 찾을 수 없습니다. "
+                    f"예상 경로: {ring_engine_path}\n"
+                    f"ring-attractor-engine 패키지를 설치하거나, "
+                    f"release/ring-attractor-engine 디렉토리에 있어야 합니다."
                 )
         except ImportError:
             raise ImportError(

@@ -1,37 +1,50 @@
 """
-Grid Engine
-2D 위치 상태 유지 엔진
-
-Ring ⊗ Ring 구조로 공간 위치를 안정적으로 유지
-
-뉴턴 제2법칙 기반:
-    Grid Engine은 뉴턴 제2법칙 (F = ma)을 위상 공간에 구현한 물리 기반 제어 엔진입니다.
-    상세 설명: docs/NEWTONS_LAW_CONNECTION.md 참조
+Grid Engine Package
+차원별 Grid Engine 모듈 (2D, 3D, 4D, ...)
 
 Author: GNJz
 Created: 2026-01-20
 Made in GNJz
-Version: v0.1.1
+Version: v0.3.0-alpha
 License: MIT License
 """
 
-from .grid_engine import GridEngine
-from .config import GridEngineConfig
-from .types import GridState, GridInput, GridOutput, GridDiagnostics
-from .coupling import normalize_phase, phase_to_coordinate, coordinate_to_phase
-from .projector import CoordinateProjector
+# 차원별 엔진 import
+from .dimensions.dim2d import (
+    Grid2DEngine, Grid2DConfig,
+    GridState, GridInput, GridOutput, GridDiagnostics
+)
+from .dimensions.dim3d import Grid3DEngine, Grid3DConfig
+from .dimensions.dim4d import Grid4DEngine, Grid4DConfig
 
-__version__ = "0.1.1"
+# 공통 모듈 import
+from .common.coupling import normalize_phase
+from .common.energy import calculate_energy, compute_diagnostics
+
+# 하위 호환성을 위한 별칭 (2D는 기본)
+GridEngine = Grid2DEngine
+GridEngineConfig = Grid2DConfig
+
 __all__ = [
-    "GridEngine",
-    "GridEngineConfig",
-    "GridState",
-    "GridInput",
-    "GridOutput",
-    "GridDiagnostics",
-    "normalize_phase",
-    "phase_to_coordinate",
-    "coordinate_to_phase",
-    "CoordinateProjector",
+    # 2D (기본)
+    'GridEngine',  # 하위 호환성
+    'GridEngineConfig',  # 하위 호환성
+    'Grid2DEngine',
+    'Grid2DConfig',
+    'GridState',  # 2D 타입
+    'GridInput',  # 2D 타입
+    'GridOutput',  # 2D 타입
+    'GridDiagnostics',  # 2D 타입
+    # 3D
+    'Grid3DEngine',
+    'Grid3DConfig',
+    # 4D
+    'Grid4DEngine',
+    'Grid4DConfig',
+    # 공통
+    'normalize_phase',
+    'calculate_energy',
+    'compute_diagnostics',
 ]
 
+__version__ = "0.3.0-alpha"

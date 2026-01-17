@@ -3,7 +3,7 @@
 **Grid Engine - 2D/3D 공간 상태 메모리 엔진**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/qquartsco-svg/grid-engine)
+[![Version](https://img.shields.io/badge/version-0.3.0--alpha-blue.svg)](https://github.com/qquartsco-svg/grid-engine)
 [![Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/qquartsco-svg/grid-engine)
 
 **English**: [README_EN.md](README_EN.md)
@@ -12,11 +12,12 @@
 
 ## 🎯 무엇을 하는가
 
-**Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D 공간 위치 상태를 안정적으로 유지하는 엔진입니다.
+**Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D/4D 공간 위치 상태를 안정적으로 유지하는 엔진입니다.
 
 **핵심 구조**:
 - **2D**: Grid = Ring X ⊗ Ring Y (직교 결합)
-- **3D**: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z (3차원 확장) ✨ NEW
+- **3D**: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z (3차원 확장)
+- **4D**: Grid 4D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W (4차원 확장) ✨ NEW
 
 **구성 요소**:
 - X, Y, Z 방향 각각 독립적인 Ring Attractor
@@ -32,9 +33,10 @@
 - Grid Engine은 **뉴턴 제2법칙 (F = ma)**을 위상 공간에 구현한 물리 기반 제어 엔진입니다.
 - 경로 통합(Path Integration)을 통해 뉴턴 역학의 이산화된 형태를 구현합니다.
 - **2D**: `v(t+Δt) = v(t) + a(t)·Δt`, `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²`
-- **3D**: `v(t+Δt) = v(t) + a(t)·Δt` (3축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (3축) ✨ NEW
+- **3D**: `v(t+Δt) = v(t) + a(t)·Δt` (3축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (3축)
+- **4D**: `v(t+Δt) = v(t) + a(t)·Δt` (4축), `r(t+Δt) = r(t) + v(t)·Δt + ½a(t)·Δt²` (4축) ✨ NEW
 - 상세 설명: [docs/NEWTONS_LAW_CONNECTION.md](docs/NEWTONS_LAW_CONNECTION.md) 참조
-- 뉴턴 3법칙 분석: [docs/NEWTONS_3RD_LAW_ANALYSIS.md](docs/NEWTONS_3RD_LAW_ANALYSIS.md) 참조 ✨ NEW
+- 뉴턴 3법칙 분석: [docs/NEWTONS_3RD_LAW_ANALYSIS.md](docs/NEWTONS_3RD_LAW_ANALYSIS.md) 참조
 
 ---
 
@@ -70,11 +72,10 @@ print(f"위치: ({output.x:.2f}, {output.y:.2f})")
 print(f"위상: ({output.phi_x:.2f}, {output.phi_y:.2f})")
 ```
 
-#### 3D Grid Engine ✨ NEW
+#### 3D Grid Engine
 
 ```python
-from grid_engine.grid_3d_engine import Grid3DEngine
-from grid_engine.types_3d import Grid3DInput
+from grid_engine.dimensions.dim3d import Grid3DEngine, Grid3DInput
 
 # Grid 3D Engine 초기화
 engine_3d = Grid3DEngine(initial_x=0.0, initial_y=0.0, initial_z=0.0)
@@ -85,6 +86,22 @@ output_3d = engine_3d.step(inp_3d)
 
 print(f"위치: ({output_3d.x:.2f}, {output_3d.y:.2f}, {output_3d.z:.2f})")
 print(f"위상: ({output_3d.phi_x:.2f}, {output_3d.phi_y:.2f}, {output_3d.phi_z:.2f})")
+```
+
+#### 4D Grid Engine ✨ NEW
+
+```python
+from grid_engine.dimensions.dim4d import Grid4DEngine, Grid4DInput
+
+# Grid 4D Engine 초기화
+engine_4d = Grid4DEngine(initial_x=0.0, initial_y=0.0, initial_z=0.0, initial_w=0.0)
+
+# 4D 속도 입력으로 이동
+inp_4d = Grid4DInput(v_x=1.0, v_y=0.5, v_z=0.3, v_w=0.2)
+output_4d = engine_4d.step(inp_4d)
+
+print(f"위치: ({output_4d.x:.2f}, {output_4d.y:.2f}, {output_4d.z:.2f}, {output_4d.w:.2f})")
+print(f"위상: ({output_4d.phi_x:.2f}, {output_4d.phi_y:.2f}, {output_4d.phi_z:.2f}, {output_4d.phi_w:.2f})")
 ```
 
 ---
@@ -138,26 +155,33 @@ grid-engine/
 
 ## 🎯 주요 기능
 
-### 1. 2D/3D 위치 상태 유지
+### 1. 2D/3D/4D 위치 상태 유지
 - **2D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y)\), 외부 표현 좌표 \((x, y)\)
-- **3D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y, \phi_z)\), 외부 표현 좌표 \((x, y, z)\) ✨ NEW
-- Ring Attractor 기반 안정화 (2D: Ring X ⊗ Ring Y, 3D: Ring X ⊗ Ring Y ⊗ Ring Z)
+- **3D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y, \phi_z)\), 외부 표현 좌표 \((x, y, z)\)
+- **4D**: 내부 상태 위상 벡터 \((\phi_x, \phi_y, \phi_z, \phi_w)\), 외부 표현 좌표 \((x, y, z, w)\) ✨ NEW
+- Ring Attractor 기반 안정화 (2D: Ring X ⊗ Ring Y, 3D: Ring X ⊗ Ring Y ⊗ Ring Z, 4D: Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W)
 
 ### 2. 경로 통합 (Path Integration)
-- 속도 벡터 입력 (2D/3D)
-- 가속도 벡터 입력 (선택적, 2D/3D)
-- 뉴턴 2법칙 완전 호환 (2D/3D)
+- 속도 벡터 입력 (2D/3D/4D)
+- 가속도 벡터 입력 (선택적, 2D/3D/4D)
+- 뉴턴 2법칙 완전 호환 (2D/3D/4D)
 
 ### 3. 에너지 최소화
 - 에너지 함수 기반 안정화
 - 열역학적 안정성
 - 진단 모드 지원
 
-### 4. 3D 확장 기능 ✨ NEW
+### 4. 3D 확장 기능
 - **3D 경로 통합**: 뉴턴 2법칙 3축 확장
 - **3D Ring 안정화**: 3개 Ring Attractor 직교 결합
 - **3D 좌표 투영**: 위상 공간 T³ = S¹ × S¹ × S¹
 - **3D 시각화**: 나선형 궤적 및 위상 공간 시각화
+
+### 5. 4D 확장 기능 ✨ NEW
+- **4D 경로 통합**: 뉴턴 2법칙 4축 확장
+- **4D Ring 안정화**: 4개 Ring Attractor 직교 결합
+- **4D 좌표 투영**: 위상 공간 T⁴ = S¹ × S¹ × S¹ × S¹
+- **4D 시각화**: 4D 궤적 및 위상 공간 시각화 (W축을 색상으로 표현)
 
 ---
 
@@ -217,8 +241,9 @@ x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}, \qua
 - `docs/GRID_ENGINE_MINIMAL_EQUATIONS.md` - 최소 수식 세트
 - `docs/GRID_ENGINE_THEORETICAL_FOUNDATION.md` - 이론적 기초
 - `docs/NEWTONS_LAW_CONNECTION.md` - **뉴턴 제2법칙과의 연관성** (상세 설명)
-- `docs/3D_CONCEPT_AND_EQUATIONS.md` - **3D 개념 및 수식** ✨ NEW
-- `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석** ✨ NEW
+- `docs/3D_CONCEPT_AND_EQUATIONS.md` - **3D 개념 및 수식**
+- `docs/4D_CONCEPT_AND_EQUATIONS.md` - **4D 개념 및 수식** ✨ NEW
+- `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석**
 
 ### 사용 가이드
 - `README.md` (한국어 - 메인)
@@ -227,8 +252,10 @@ x = \phi_x \cdot \frac{L_x}{2\pi}, \quad y = \phi_y \cdot \frac{L_y}{2\pi}, \qua
 ### 예제
 - `examples/run_grid_basic_demo.py` - 2D 기본 데모
 - `examples/run_grid_visual_demo.py` - 2D 시각화 데모
-- `examples/run_grid_3d_basic_demo.py` - 3D 기본 데모 ✨ NEW
-- `examples/run_grid_3d_visual_demo.py` - 3D 시각화 데모 (나선형 궤적) ✨ NEW
+- `examples/run_grid_3d_basic_demo.py` - 3D 기본 데모
+- `examples/run_grid_3d_visual_demo.py` - 3D 시각화 데모 (나선형 궤적)
+- `examples/run_grid_4d_basic_demo.py` - 4D 기본 데모 ✨ NEW
+- `examples/run_grid_4d_visual_demo.py` - 4D 시각화 데모 (4D 궤적) ✨ NEW
 
 ---
 
@@ -290,8 +317,8 @@ pytest tests/test_grid_engine_init.py -v
 ---
 
 **Last Updated**: 2026-01-20  
-**Version**: v0.2.0 (3D 확장 완료) ✨  
-**Status**: Alpha (2D/3D 제품화 준비 완료) ✅  
+**Version**: v0.3.0-alpha (4D 확장 완료) ✨  
+**Status**: Alpha (2D/3D/4D 제품화 준비 완료) ✅  
 **Author**: GNJz  
 **Made in GNJz**
 

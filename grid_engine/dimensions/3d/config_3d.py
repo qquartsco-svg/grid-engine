@@ -13,7 +13,7 @@ License: MIT License
 """
 
 from dataclasses import dataclass
-from .config import GridEngineConfig
+from ..2d.config_2d import GridEngineConfig
 
 
 @dataclass

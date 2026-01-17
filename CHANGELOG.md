@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0-alpha] - 2026-01-20
+
+### Added
+- **4D Grid Engine**: Complete 4D spatial state memory engine ✨
+  - `Grid4DEngine`: Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W structure
+  - `types_4d.py`: Grid4DState, Grid4DInput, Grid4DOutput, Grid4DConfig
+  - `config_4d.py`: 4D configuration with W-axis settings
+  - `integrator_4d.py`: 4D path integration (Newton's 2nd law 4D extension)
+  - `projector_4d.py`: 4D coordinate projection (phase ↔ coordinate conversion)
+  - `ring_4d_adapter.py`: 4D Ring Adapter (4 independent Ring Attractors)
+- **4D Tests**: Comprehensive test suite for 4D functionality
+  - `test_grid_4d_engine_init.py`: 5 initialization tests (all passing)
+  - `test_grid_4d_engine_path_integration.py`: 4 path integration tests
+  - Total: 9 new 4D tests (44 tests total: 26 2D + 9 3D + 9 4D)
+- **4D Demos**: Visual demonstrations of 4D capabilities
+  - `run_grid_4d_basic_demo.py`: Basic 4D demo with phase/coordinate/velocity output
+  - `run_grid_4d_visual_demo.py`: 4D visualization demo with 4D trajectory
+    - 3D trajectory plot (X-Y-Z space, W as color)
+    - Phase vs time (4D)
+    - Velocity vs time (4D)
+    - Phase space trajectory (2D projections: (φx, φy) and (φz, φw))
+- **4D Documentation**: Comprehensive 4D concept and equation documentation
+  - `docs/4D_CONCEPT_AND_EQUATIONS.md`: 4D concepts, mathematical equations, and Ring ⊗ Ring ⊗ Ring ⊗ Ring structure
+- **Modular Folder Structure**: Organized by dimensions for better maintainability
+  - `dimensions/dim2d/`: All 2D-specific modules
+  - `dimensions/dim3d/`: All 3D-specific modules
+  - `dimensions/dim4d/`: All 4D-specific modules ✨ NEW
+  - `common/`: Shared modules (coupling, energy, adapters)
+- **Import Path Fixes**: Fixed Ring Attractor Engine import paths for all adapters
+  - `ring_adapter.py`: Improved path resolution
+  - `ring_3d_adapter.py`: Improved path resolution
+  - `ring_4d_adapter.py`: Improved path resolution ✨ NEW
+- **Type Exports**: Added GridInput, GridOutput, GridDiagnostics to `__init__.py` for easier imports
+
+### Technical Details
+- **4D Path Integration**: Newton's 2nd law extended to 4D
+  - Formula: `v(t+Δt) = v(t) + a(t)·Δt` (4 axes)
+  - Formula: `φ(t+Δt) = φ(t) + v(t)·Δt + ½a(t)·Δt²` (4 axes)
+  - Physical consistency: All calculations use `dt_s = dt_ms / 1000.0`
+- **4D Ring Stabilization**: 4 independent Ring Attractors
+  - Ring X: Stabilizes φx ∈ [0, 2π)
+  - Ring Y: Stabilizes φy ∈ [0, 2π)
+  - Ring Z: Stabilizes φz ∈ [0, 2π)
+  - Ring W: Stabilizes φw ∈ [0, 2π) ✨ NEW
+  - Orthogonal combination: T⁴ = S¹ × S¹ × S¹ × S¹ (4D torus)
+- **4D Coordinate Projection**: Phase-to-coordinate conversion
+  - `phase_to_coordinate(phi_x, phi_y, phi_z, phi_w) -> (x, y, z, w)`
+  - `coordinate_to_phase(x, y, z, w) -> (phi_x, phi_y, phi_z, phi_w)`
+  - Strict separation: Internal phase management vs. external coordinate projection
+
+### Changed
+- **Project Structure**: Reorganized into dimension-specific folders
+  - Moved 2D files to `dimensions/dim2d/`
+  - Moved 3D files to `dimensions/dim3d/`
+  - Moved 4D files to `dimensions/dim4d/` ✨ NEW
+  - Moved common files to `common/`
+- **Import Paths**: Updated all internal imports to use new folder structure
+  - Dimension-specific modules use relative imports within their dimension
+  - Common modules use `TYPE_CHECKING` for dimension-specific types
+
+### Fixed
+- **Import Errors**: Fixed `ModuleNotFoundError` for `ring_attractor_engine`
+  - Improved path resolution in all Ring Adapters
+  - Added fallback mechanisms for local development
+
+---
+
 ## [0.2.0] - 2026-01-20
 
 ### Added

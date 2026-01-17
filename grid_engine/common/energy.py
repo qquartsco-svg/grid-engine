@@ -28,9 +28,13 @@ Version: v0.1.1
 License: MIT License
 """
 
-from typing import Optional, Tuple
-from .types import GridState, GridDiagnostics
-from .config import GridEngineConfig
+from typing import Optional, Tuple, Any
+
+# GridState, GridDiagnostics, Config는 차원별로 다르므로 Any로 타입 힌트
+# 각 차원 모듈에서 실제 타입을 전달
+GridState = Any
+GridDiagnostics = Any
+GridEngineConfig = Any
 
 
 def calculate_energy(

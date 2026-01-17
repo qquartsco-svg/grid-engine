@@ -34,7 +34,7 @@ License: MIT License
 """
 
 from typing import Tuple
-from .types import GridState, GridInput
+from .types_2d import GridState, GridInput
 
 
 def semi_implicit_euler(
