@@ -73,6 +73,13 @@ Grid Engine의 실행 가능한 파일(데모, 테스트) 목록입니다.
 | `test_grid_4d_engine_init.py` | 4D 초기화 테스트 | `pytest tests/test_grid_4d_engine_init.py` |
 | `test_grid_4d_engine_path_integration.py` | 4D 경로 통합 테스트 | `pytest tests/test_grid_4d_engine_path_integration.py` |
 
+### 5D Grid Engine 테스트 (5축 CNC/로보틱스) ✨ NEW
+
+| 파일명 | 설명 | 실행 방법 |
+|--------|------|-----------|
+| `test_grid_5d_engine_init.py` | 5D 초기화 테스트 | `pytest tests/test_grid_5d_engine_init.py` |
+| `test_grid_5d_engine_path_integration.py` | 5D 경로 통합 테스트 (단위 변환 포함) | `pytest tests/test_grid_5d_engine_path_integration.py` |
+
 ---
 
 ## 🚀 빠른 실행 스크립트
