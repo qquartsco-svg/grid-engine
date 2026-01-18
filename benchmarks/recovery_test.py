@@ -39,8 +39,31 @@ sys.path.insert(0, str(project_root))
 
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Tuple, List
+import warnings
+from typing import Tuple, List, Dict
 from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput, Grid5DConfig
+
+# 한글 폰트 경고 억제
+warnings.filterwarnings('ignore', category=UserWarning, message='.*Glyph.*missing from font.*')
+plt.rcParams['font.family'] = 'DejaVu Sans'
+
+
+class SuppressOutput:
+    """출력 억제 컨텍스트 매니저"""
+    def __enter__(self):
+        import sys
+        import os
+        self._stdout = sys.stdout
+        self._stderr = sys.stderr
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+        return self
+    def __exit__(self, *args):
+        import sys
+        sys.stdout.close()
+        sys.stderr.close()
+        sys.stdout = self._stdout
+        sys.stderr = self._stderr
 
 
 class PIDController:
@@ -69,54 +92,55 @@ class PIDController:
         
         self.prev_error = error.copy()
         return output
+    
+    def reset(self):
+        """PID 상태 리셋"""
+        self.integral = np.zeros(5)
+        self.prev_error = np.zeros(5)
 
 
 class GridEngineAdapter:
-    """Grid Engine 어댑터 (Reference Stabilizer 구조)"""
+    """Grid Engine 어댑터 (Persistent Bias Estimator 구조)"""
     
-    def __init__(self, pid_controller: PIDController, setpoint: np.ndarray):
-        self.pid = pid_controller
-        config = Grid5DConfig(
-            dt_ms=10.0,
-            tau_ms=100.0,
-            max_dt_ratio=0.2
-        )
-        self.grid_engine = Grid5DEngine(config=config)
-        self.slow_update_cycle = 10  # 저주파 업데이트 주기 (10ms → 100ms)
+    def __init__(self, setpoint: np.ndarray, pid_kp: float = 1.0, 
+                 pid_ki: float = 0.1, pid_kd: float = 0.01):
+        # Grid Engine 초기화 시 출력 억제
+        with SuppressOutput():
+            self.grid_engine = Grid5DEngine(
+                config=Grid5DConfig(),
+                initial_x=setpoint[0],
+                initial_y=setpoint[1],
+                initial_z=setpoint[2],
+                initial_theta_a=setpoint[3],
+                initial_theta_b=setpoint[4]
+            )
+            self.grid_engine.set_target(setpoint)
+        self.pid = PIDController(kp=pid_kp, ki=pid_ki, kd=pid_kd)
         self.step_counter = 0
-        
-        # 목표 상태를 Grid Engine에 설정 (안정 상태로 기억)
-        self.grid_engine.set_target(setpoint)
     
     def enhanced_control(self, setpoint: np.ndarray, current: np.ndarray, 
                         disturbance: np.ndarray = None) -> np.ndarray:
         """
-        향상된 제어 (PID + Grid Engine Reference Stabilizer)
+        Reference Injection 방식으로 제어 (Persistent Bias Estimator)
         
-        올바른 구조:
-        1. Grid Engine 상태 업데이트 (저주파)
-        2. Reference Correction 계산
-        3. Target 보정 (Reference Injection)
-        4. PID 제어 (고주파)
+        Grid Engine이 학습한 편향을 Target에 추가하여 외란 복귀를 보조합니다.
         """
         self.step_counter += 1
         
-        # 1. Grid Engine 상태 업데이트 (저주파, 느린 주기)
-        if self.step_counter % self.slow_update_cycle == 0:
-            self.grid_engine.update(current)
+        # ✅ Grid Engine 상태 업데이트 (내부적으로 느린 주기로 필터링됨)
+        self.grid_engine.update(current)
         
-        # 2. Reference Correction 제공 (현재 상태를 직접 전달)
-        reference_correction = self.grid_engine.provide_reference(current)
+        # ✅ 학습된 편향 기반 Reference Correction 제공
+        reference_correction = self.grid_engine.provide_reference()
         
-        # 3. Target 보정 (Reference Injection)
-        # Reference Correction을 Target에 추가
-        # 동적 가중치: 오차가 클 때는 더 강하게 보정
+        # ✅ 외란 복귀 시 동적 가중치 (오차가 클수록 더 강하게 보정)
         error_magnitude = np.linalg.norm(setpoint - current)
-        # 오차가 클수록 보정 가중치 증가 (최대 0.2)
-        correction_weight = min(0.2, 0.05 + error_magnitude * 0.1)
+        correction_weight = min(1.0, 0.1 + error_magnitude * 5.0)
+        
+        # Reference Injection: Target 보정
         setpoint_corrected = setpoint + reference_correction * correction_weight
         
-        # 4. PID 제어 (고주파, 보정된 Target 사용)
+        # PID 제어 (보정된 setpoint 사용)
         pid_output = self.pid.control(setpoint_corrected, current)
         
         return pid_output
@@ -148,7 +172,7 @@ def run_recovery_test(
     pid_positions = []
     
     # PID + Grid 테스트
-    grid_adapter = GridEngineAdapter(pid_controller, setpoint)
+    grid_adapter = GridEngineAdapter(setpoint)
     enhanced_current = initial.copy()
     enhanced_errors = []
     enhanced_positions = []
@@ -249,86 +273,60 @@ def plot_recovery_comparison(pid_results: dict, enhanced_results: dict,
     plt.tight_layout()
     
     if output_file:
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"✅ 그래프 저장: {output_file}")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.savefig(output_file, dpi=300, bbox_inches='tight')
     else:
-        plt.savefig('benchmarks/recovery_comparison.png', dpi=300, bbox_inches='tight')
-        print("✅ 그래프 저장: benchmarks/recovery_comparison.png")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.savefig('benchmarks/recovery_comparison.png', dpi=300, bbox_inches='tight')
     
     plt.close()
 
 
 def print_comparison_results(pid_results: dict, enhanced_results: dict):
-    """비교 결과 출력"""
-    print("=" * 70)
+    """비교 결과 출력 (간결한 테이블 형식)"""
+    print("\n" + "=" * 80)
     print("외란 복귀 비교 결과 (Disturbance Recovery Comparison)")
-    print("=" * 70)
-    print()
+    print("=" * 80)
     
-    # 복귀 시간 비교
-    print("1. 복귀 시간 (Settling Time)")
-    print("-" * 70)
-    print(f"   PID Only:           {pid_results['settling_time']:3d} steps")
-    print(f"   PID + Grid Engine:  {enhanced_results['settling_time']:3d} steps")
-    improvement = ((pid_results['settling_time'] - enhanced_results['settling_time']) 
-                   / pid_results['settling_time'] * 100)
-    print(f"   개선율:             {improvement:+.1f}%")
-    print()
+    # 테이블 형식으로 출력
+    print(f"{'지표':<30} {'PID Only':<20} {'PID + Grid':<20} {'개선율':<10}")
+    print("-" * 80)
     
-    # RMS 오차 비교
-    print("2. RMS 위치 오차 (RMS Position Error)")
-    print("-" * 70)
-    print(f"   PID Only:           {pid_results['rms_error']:.6f}")
-    print(f"   PID + Grid Engine:  {enhanced_results['rms_error']:.6f}")
-    improvement = ((pid_results['rms_error'] - enhanced_results['rms_error']) 
-                   / pid_results['rms_error'] * 100)
-    print(f"   개선율:             {improvement:+.1f}%")
-    print()
+    # Settling Time
+    st_pid = pid_results['settling_time']
+    st_grid = enhanced_results['settling_time']
+    st_improve = ((st_pid - st_grid) / st_pid * 100) if st_pid > 0 else 0.0
+    print(f"{'복귀 시간 (steps)':<30} {st_pid:<20.1f} {st_grid:<20.1f} {st_improve:>+9.1f}%")
     
-    # 최종 오차 비교
-    print("3. 최종 위치 오차 (Final Position Error)")
-    print("-" * 70)
-    print(f"   PID Only:           {pid_results['final_error']:.6f}")
-    print(f"   PID + Grid Engine:  {enhanced_results['final_error']:.6f}")
-    improvement = ((pid_results['final_error'] - enhanced_results['final_error']) 
-                   / pid_results['final_error'] * 100)
-    print(f"   개선율:             {improvement:+.1f}%")
-    print()
+    # RMS Error
+    rms_pid = pid_results['rms_error']
+    rms_grid = enhanced_results['rms_error']
+    rms_improve = ((rms_pid - rms_grid) / rms_pid * 100) if rms_pid > 0 else 0.0
+    print(f"{'RMS 오차 (m)':<30} {rms_pid:<20.6f} {rms_grid:<20.6f} {rms_improve:>+9.1f}%")
     
-    # 최대 오차 비교
-    print("4. 최대 오차 (Maximum Error)")
-    print("-" * 70)
-    print(f"   PID Only:           {pid_results['max_error']:.6f}")
-    print(f"   PID + Grid Engine:  {enhanced_results['max_error']:.6f}")
-    improvement = ((pid_results['max_error'] - enhanced_results['max_error']) 
-                   / pid_results['max_error'] * 100)
-    print(f"   개선율:             {improvement:+.1f}%")
-    print()
+    # Final Error
+    final_pid = pid_results['final_error']
+    final_grid = enhanced_results['final_error']
+    final_improve = ((final_pid - final_grid) / final_pid * 100) if final_pid > 0 else 0.0
+    print(f"{'최종 오차 (m)':<30} {final_pid:<20.6f} {final_grid:<20.6f} {final_improve:>+9.1f}%")
     
-    print("=" * 70)
-    print("결론: Grid Engine Reference Stabilizer가 외란 복귀 능력을 향상시킵니다.")
-    print("      - 복귀 시간 단축")
-    print("      - RMS 오차 감소")
-    print("      - 위상 메모리 기반 기준점 안정화")
-    print("      - 저주파 보정으로 PID 제어 보조")
-    print("=" * 70)
+    # Max Error
+    max_pid = pid_results['max_error']
+    max_grid = enhanced_results['max_error']
+    max_improve = ((max_pid - max_grid) / max_pid * 100) if max_pid > 0 else 0.0
+    print(f"{'최대 오차 (m)':<30} {max_pid:<20.6f} {max_grid:<20.6f} {max_improve:>+9.1f}%")
+    
+    print("=" * 80)
+    print("🔬 초기 결과 (검증 중) - 추가 검증 필요")
+    print("=" * 80 + "\n")
 
 
 def main():
     """메인 실행 함수"""
-    print("=" * 70)
-    print("외란 복귀 비교 벤치마크 실행")
-    print("=" * 70)
-    print()
-    
     # 목표 위치 설정 (5D)
     setpoint = np.array([1.0, 0.5, 0.3, 10.0, 5.0])  # X, Y, Z [m], A, B [deg]
-    
-    print("시나리오:")
-    print(f"  - 목표 위치: X={setpoint[0]:.2f}m, Y={setpoint[1]:.2f}m, Z={setpoint[2]:.2f}m")
-    print(f"  - 목표 각도: A={setpoint[3]:.2f}°, B={setpoint[4]:.2f}°")
-    print(f"  - 외란 주입: Step 50")
-    print()
     
     # 테스트 실행
     pid_results, enhanced_results = run_recovery_test(
@@ -347,11 +345,6 @@ def main():
         disturbance_step=50,
         output_file='benchmarks/recovery_comparison.png'
     )
-    
-    print()
-    print("✅ 벤치마크 완료!")
-    print("   - 그래프: benchmarks/recovery_comparison.png")
-    print("   - 결과: 위 출력 참조")
 
 
 if __name__ == "__main__":
