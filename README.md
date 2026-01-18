@@ -20,6 +20,50 @@
 
 ---
 
+## 🎯 활용 분야별 기본 엔진 가이드
+
+**2D~7D까지 다양한 차원이 있지만, 활용 분야에 따라 기본 엔진을 선택하세요:**
+
+### 📚 학습/개발용: **2D Grid Engine** ⭐
+- **언제 사용**: 개념 이해, 학습, 빠른 프로토타이핑
+- **구조**: 위치 2축 (X, Y)
+- **특징**: 가장 단순한 구조, 이해하기 쉬움
+- **코드**: `from grid_engine import GridEngine` (기본값)
+
+### 🤖 일반 로보틱스: **5D Grid Engine** ⭐⭐ **핵심 기본**
+- **언제 사용**: 일반적인 로봇 움직임, 5축 CNC, 산업용 로봇 팔
+- **구조**: 위치 3축 (X, Y, Z) + 회전 2축 (A, B)
+- **특징**: **모든 로봇의 일반 움직임에 적용 가능한 범용 정밀 제어 엔진**
+- **코드**: `from grid_engine.dimensions.dim5d import Grid5DEngine`
+- **권장**: 로보틱스 프로젝트의 **기본 엔진**으로 사용
+
+### 🏭 산업 표준: **6D Grid Engine** ⭐⭐⭐
+- **언제 사용**: 6축 로봇 팔, 6축 CNC, 산업 표준 구조
+- **구조**: 위치 3축 (X, Y, Z) + 회전 3축 (A, B, C)
+- **특징**: 산업에서 가장 흔한 구조, 자동차 조립, 전자 부품 조립
+- **코드**: `from grid_engine.dimensions.dim6d import Grid6DEngine`
+
+### 🔬 초정밀/고급: **7D Grid Engine**
+- **언제 사용**: 7축 로봇 팔, 초정밀 가공, 복잡한 다축 제어
+- **구조**: 위치 3축 (X, Y, Z) + 회전 4축 (A, B, C, D)
+- **특징**: Redundant Manipulator, 초정밀 가공 시스템
+- **코드**: `from grid_engine.dimensions.dim7d import Grid7DEngine`
+
+### 📊 차원별 역할 요약
+
+| 차원 | 역할 | 기본 사용 케이스 | 권장도 |
+|------|------|----------------|--------|
+| **2D** | 학습/개발용 기본 | 개념 이해, 프로토타이핑 | ⭐ |
+| **3D** | 공간 표현 기본 | 3D 프린터, 드론 (회전 없음) | ⭐ |
+| **4D** | 고차원 연구용 | 연구/실험, 4차원 탐색 | ⭐ |
+| **5D** | **로보틱스 기본** | **일반 로봇 움직임, 5축 CNC** | ⭐⭐ **핵심** |
+| **6D** | 산업 표준 | 6축 로봇 팔, 산업 표준 | ⭐⭐⭐ |
+| **7D** | 초정밀/고급 | 7축 로봇 팔, 초정밀 가공 | ⭐⭐⭐⭐ |
+
+**💡 추천**: 로보틱스 프로젝트라면 **5D Grid Engine**을 기본으로 시작하세요.
+
+---
+
 ## 📐 차원별 확장 및 활용 분야
 
 ### 2D Grid Engine: 평면 운동 제어
@@ -262,6 +306,27 @@
 
 ## 🚀 빠른 시작
 
+### 💡 어떤 엔진을 선택해야 할까요?
+
+**로보틱스 프로젝트라면 → 5D Grid Engine (권장) ⭐⭐**
+```python
+from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput
+```
+
+**학습/개발용이라면 → 2D Grid Engine (기본) ⭐**
+```python
+from grid_engine import GridEngine, GridInput
+```
+
+**산업 표준이 필요하다면 → 6D Grid Engine ⭐⭐⭐**
+```python
+from grid_engine.dimensions.dim6d import Grid6DEngine, Grid6DInput
+```
+
+**자세한 가이드는 위의 "활용 분야별 기본 엔진 가이드" 섹션을 참조하세요.**
+
+---
+
 ### 설치
 
 ```bash
@@ -276,7 +341,30 @@ pip install -e .
 
 ### 기본 사용법
 
-#### 2D Grid Engine
+#### 5D Grid Engine (로보틱스 기본) ⭐⭐ 권장
+
+```python
+from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput
+
+# Grid 5D Engine 초기화 (위치 3축 + 회전 2축)
+engine_5d = Grid5DEngine(
+    initial_x=0.0, initial_y=0.0, initial_z=0.0,
+    initial_theta_a=0.0, initial_theta_b=0.0
+)
+
+# 5D 속도 입력으로 이동 (위치 + 회전)
+inp_5d = Grid5DInput(
+    v_x=1.0, v_y=0.5, v_z=0.3,  # 위치 속도 [m/s]
+    v_a=0.5, v_b=0.3  # 회전 각속도 [deg/s] (입력 단위)
+)
+output_5d = engine_5d.step(inp_5d)
+
+print(f"위치: ({output_5d.x:.2f}, {output_5d.y:.2f}, {output_5d.z:.2f}) m")
+print(f"각도: A={output_5d.theta_a:.2f}°, B={output_5d.theta_b:.2f}°")
+print(f"위상: ({output_5d.phi_x:.2f}, {output_5d.phi_y:.2f}, {output_5d.phi_z:.2f}, {output_5d.phi_a:.2f}, {output_5d.phi_b:.2f}) rad")
+```
+
+#### 2D Grid Engine (학습/개발용 기본) ⭐
 
 ```python
 from grid_engine import GridEngine, GridInput
@@ -324,28 +412,6 @@ print(f"위치: ({output_4d.x:.2f}, {output_4d.y:.2f}, {output_4d.z:.2f}, {outpu
 print(f"위상: ({output_4d.phi_x:.2f}, {output_4d.phi_y:.2f}, {output_4d.phi_z:.2f}, {output_4d.phi_w:.2f})")
 ```
 
-#### 5D Grid Engine (CNC급 정밀 움직임 → 로봇 일반 움직임) ✨ NEW
-
-```python
-from grid_engine.dimensions.dim5d import Grid5DEngine, Grid5DInput
-
-# Grid 5D Engine 초기화
-engine_5d = Grid5DEngine(
-    initial_x=0.0, initial_y=0.0, initial_z=0.0,
-    initial_theta_a=0.0, initial_theta_b=0.0
-)
-
-# 5D 속도 입력으로 이동 (위치 + 회전)
-inp_5d = Grid5DInput(
-    v_x=1.0, v_y=0.5, v_z=0.3,  # 위치 속도 [m/s]
-    v_a=0.5, v_b=0.3  # 회전 각속도 [deg/s] (입력 단위)
-)
-output_5d = engine_5d.step(inp_5d)
-
-print(f"위치: ({output_5d.x:.2f}, {output_5d.y:.2f}, {output_5d.z:.2f}) m")
-print(f"각도: A={output_5d.theta_a:.2f}°, B={output_5d.theta_b:.2f}°")
-print(f"위상: ({output_5d.phi_x:.2f}, {output_5d.phi_y:.2f}, {output_5d.phi_z:.2f}, {output_5d.phi_a:.2f}, {output_5d.phi_b:.2f}) rad")
-```
 
 #### 6D Grid Engine (6축 로봇 팔, 6축 CNC) ✨ NEW
 
