@@ -23,6 +23,12 @@ License: MIT License
 """
 
 import pytest
+import sys
+import os
+
+# 프로젝트 루트 경로 추가
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from grid_engine.dimensions.dim4d.grid_4d_engine import Grid4DEngine
 from grid_engine.dimensions.dim4d.config_4d import Grid4DConfig
 from grid_engine.dimensions.dim4d.types_4d import Grid4DInput

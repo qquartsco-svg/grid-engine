@@ -17,6 +17,12 @@ License: MIT License
 """
 
 import pytest
+import sys
+import os
+
+# 프로젝트 루트 경로 추가
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from grid_engine.dimensions.dim3d.grid_3d_engine import Grid3DEngine
 from grid_engine.dimensions.dim3d.config_3d import Grid3DConfig
 from grid_engine.dimensions.dim3d.types_3d import Grid3DInput
