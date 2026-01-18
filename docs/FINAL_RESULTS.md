@@ -21,7 +21,7 @@
 
 **초기 판정:**
 - 🔬 **긍정적인 초기 결과** (추가 검증 필요)
-- 🔬 **Persistent Bias Estimator 구현 완료** (검증 진행 중)
+- 🔬 **Persistent Bias Estimator 구현 진행 중** (검증 진행 중)
 - 🔬 **초기 결과에서 드리프트 억제 효과 관찰** (다양한 시나리오 검증 필요)
 
 ---
@@ -57,9 +57,9 @@
 
 ---
 
-## 📊 구현 완료 사항
+## 📊 구현 사항 (검증 중)
 
-### ✅ Persistent Bias Estimator 구현
+### 🔬 Persistent Bias Estimator 구현 (검증 중)
 
 **구현 내용:**
 1. `bias_estimate`: 누적 편향 추정 추가
@@ -112,8 +112,8 @@
 
 ## 📝 현재 상태
 
-### 구현 완료
-1. **Persistent Bias Estimator 구현 완료** ✅
+### 구현 진행 중
+1. **Persistent Bias Estimator 구현 진행 중** 🔬
 2. **초기 벤치마크 결과 도출** 🔬
 3. **지속적인 검증 및 개선 진행 중** 🔬
 
