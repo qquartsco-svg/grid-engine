@@ -1,0 +1,581 @@
+"""
+Grid 7D Engine
+Ring ⊗ Ring ⊗ Ring ⊗ Ring ⊗ Ring 조립 + step()만 담당
+
+이 모듈은 7D Grid Engine의 메인 엔진입니다.
+Ring Attractor Engine 5개(X, Y, Z, A, B, C, D)를 직교 결합하여 7D 위상 공간을 구성합니다.
+
+7D 확장 (7축 시스템):
+    - 2D: Grid = Ring X ⊗ Ring Y
+    - 3D: Grid 3D = Ring X ⊗ Ring Y ⊗ Ring Z
+    - 4D: Grid 4D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W
+    - 7D: Grid 7D = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B ⊗ Ring C ⊗ Ring D ✨ NEW
+
+뉴턴 제2법칙과의 연관성 (7D):
+    Grid 7D Engine은 뉴턴 제2법칙 (F = ma)을 5차원 위상 공간에 구현한 물리 기반 제어 엔진입니다.
+    
+    물리적 대응 관계 (7D):
+        위치 축 (X, Y, Z):
+            물리량          Grid 7D Engine          단위
+            위치 r          위상 φ (phase)           [rad]
+            속도 v          속도 입력 (velocity)     [m/s]
+            가속도 a        가속도 입력 (accel)      [m/s²]
+            힘 F            외란 (disturbance)      [N]
+        
+        회전 축 (A, B, C, D):
+            물리량          Grid 7D Engine          단위
+            각도 θ          위상 φ (phase)           [rad]
+            각속도 ω        각속도 입력 (velocity)   [deg/s] 또는 [rad/s]
+            각가속도 α      각가속도 입력 (accel)    [deg/s²] 또는 [rad/s²]
+            토크 τ          외란 (disturbance)      [N·m]
+    
+    상태 방정식 (뉴턴 역학의 이산화, 7D):
+        위치 축:
+            dφx/dt = vx(t)
+            dφy/dt = vy(t)
+            dφz/dt = vz(t)
+            
+            dvx/dt = ax(t)  ← 뉴턴 2법칙
+            dvy/dt = ay(t)  ← 뉴턴 2법칙
+            dvz/dt = az(t)  ← 뉴턴 2법칙
+        
+        회전 축:
+            dφa/dt = va(t)
+            dφb/dt = vb(t)
+            
+            dva/dt = αa(t)  ← 회전 운동 방정식 (τ = Iα)
+            dvb/dt = αb(t)  ← 회전 운동 방정식 (τ = Iα)
+    
+    코드 구현:
+        integrator_7d.semi_implicit_euler_7d()에서 뉴턴 2법칙을 적용
+        위치 축: v_new = v_old + a * dt_s, phi_new = phi_old + v * dt_s + 0.5 * a * dt_s²
+        회전 축: v_new = v_old + α * dt_s, phi_new = phi_old + v * dt_s + 0.5 * α * dt_s²
+    
+    상세 설명:
+        - docs/NEWTONS_LAW_CONNECTION.md (뉴턴 2법칙)
+        - docs/7D_CONCEPT_AND_EQUATIONS.md (7D 개념 및 수식)
+
+핵심 아키텍처:
+    Grid 7D Engine = Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B ⊗ Ring C ⊗ Ring D
+    - Ring X: X 방향 위상 관리 (φx ∈ [0, 2π)) (위치)
+    - Ring Y: Y 방향 위상 관리 (φy ∈ [0, 2π)) (위치)
+    - Ring Z: Z 방향 위상 관리 (φz ∈ [0, 2π)) (위치)
+    - Ring A: A 방향 위상 관리 (φa ∈ [0, 2π)) (회전) ✨ NEW
+    - Ring B: B 방향 위상 관리 (φb ∈ [0, 2π)) (회전) ✨ NEW
+    - 직교 결합: 각 Ring은 독립적으로 동작
+
+모듈 분리 원칙:
+    - grid_7d_engine.py: 조립 + step()만 담당
+    - integrator_7d.py: 수치 적분 (경로 통합, 뉴턴 2법칙, 7D)
+    - coupling.py: 위상 정규화 (2D/3D/4D/7D 공통 사용 가능)
+    - projector_7d.py: 좌표/각도 투영 (관측자, 7D)
+    - energy.py: 에너지 계산 및 진단 (2D만 지원, 7D는 TODO)
+    - adapters/ring_7d_adapter.py: Ring Engine 래핑 (7D)
+
+알고리즘 흐름:
+    1. 수치 적분: 속도/가속도 → 위상 업데이트 (뉴턴 2법칙, 7D)
+    2. Ring 안정화: 위상을 Attractor에 붙잡기 (5개 Ring)
+    3. 좌표/각도 투영: 위상 → 좌표/각도 변환 (projector_7d 사용)
+
+수학적 배경:
+    Grid 7D Engine은 연속 어트랙터 네트워크(Continuous Attractor Network)의
+    5차원 확장입니다. 경로 통합(Path Integration)을 통해 7D 위치/각도 상태를 유지합니다.
+    
+    위상 공간: T⁷ = S¹ × S¹ × S¹ × S¹ × S¹ × S¹ × S¹ (토러스, 5차원)
+    상태 방정식: dΦ/dt = v + ½a·t (7D 벡터)
+
+상세 설명:
+    - docs/7D_CONCEPT_AND_EQUATIONS.md (7D 개념 및 수식)
+    - docs/5AXIS_CNC_APPLICATION.md (7축 시스템 응용)
+    - docs/RING_ATTRACTOR_RELATIONSHIP.md (Ring Attractor 연관성)
+
+Author: GNJz
+Created: 2026-01-20
+Made in GNJz
+Version: v0.4.0-alpha (7D extension)
+License: MIT License
+"""
+
+from typing import Optional
+import math
+import numpy as np
+from .config_7d import Grid7DConfig
+from .types_7d import Grid7DState, Grid7DInput, Grid7DOutput, Grid7DDiagnostics
+from .integrator_7d import semi_implicit_euler_7d
+from ...common.coupling import normalize_phase
+from ...common.energy import compute_diagnostics, calculate_energy  # TODO: 7D 에너지 계산으로 확장
+from ...common.adapters.ring_7d_adapter import Ring7DAdapter
+from ...common.adapters.ring_adapter import RingAdapterConfig
+from .projector_7d import Coordinate7DProjector
+
+
+class Grid7DEngine:
+    """
+    Grid 7D Engine
+    
+    Ring ⊗ Ring ⊗ Ring ⊗ Ring ⊗ Ring 구조로 7D 위치/각도 상태 유지
+    
+    7D 확장 (7축 시스템):
+        - 2D: Ring X ⊗ Ring Y → (x, y)
+        - 3D: Ring X ⊗ Ring Y ⊗ Ring Z → (x, y, z)
+        - 4D: Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring W → (x, y, z, w)
+        - 7D: Ring X ⊗ Ring Y ⊗ Ring Z ⊗ Ring A ⊗ Ring B ⊗ Ring C ⊗ Ring D → (x, y, z, θa, θb, θc, θd) ✨ NEW
+    
+    7축 시스템 매핑:
+        - 위치 축 (3개): X, Y, Z (선형 이동) [m]
+        - 회전 축 (2개): A, B (각도 회전) [deg]
+    """
+    
+    def __init__(
+        self,
+        config: Optional[Grid7DConfig] = None,
+        initial_x: float = 0.0,
+        initial_y: float = 0.0,
+        initial_z: float = 0.0,
+        initial_theta_a: float = 0.0,  # 회전 각도 ✨ NEW
+        initial_theta_b: float = 0.0,  # 회전 각도 ✨ NEW
+        initial_theta_c: float = 0.0,  # 회전 각도
+        initial_theta_d: float = 0.0   # 회전 각도
+    ):
+        """
+        Grid 7D Engine 초기화
+        
+        Args:
+            config: 설정 (None이면 기본값)
+            initial_x: 초기 X 좌표 [m] (위치)
+            initial_y: 초기 Y 좌표 [m] (위치)
+            initial_z: 초기 Z 좌표 [m] (위치)
+            initial_theta_a: 초기 A축 각도 [deg] (회전) ✨ NEW
+            initial_theta_b: 초기 B축 각도 [deg] (회전) ✨ NEW
+        """
+        self.config = config or Grid7DConfig()
+        self.config.validate()
+        
+        # Ring 7D Adapter 생성
+        ring_cfg_x = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_x
+        )
+        ring_cfg_y = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_y
+        )
+        ring_cfg_z = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_z
+        )
+        ring_cfg_a = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_a
+        )  # 회전 축 ✨ NEW
+        ring_cfg_b = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_b
+        )  # 회전 축 ✨ NEW
+        ring_cfg_c = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_c
+        )  # 회전 축
+        ring_cfg_d = RingAdapterConfig(
+            size=self.config.ring_size,
+            config=self.config.ring_cfg_d
+        )  # 회전 축
+        self.ring_adapter = Ring7DAdapter(ring_cfg_x, ring_cfg_y, ring_cfg_z, ring_cfg_a, ring_cfg_b, ring_cfg_c, ring_cfg_d)
+        
+        # Coordinate 7D Projector 생성 (좌표/각도 투영 담당)
+        self.projector = Coordinate7DProjector(self.config)
+        
+        # 초기 상태 설정 (7D)
+        # 주의: Grid 7D Engine은 위상만 유지, 좌표/각도는 projector가 계산
+        phi_x, phi_y, phi_z, phi_a, phi_b, phi_c, phi_d = self.projector.coordinate_to_phase(
+            initial_x, initial_y, initial_z, initial_theta_a, initial_theta_b, initial_theta_c, initial_theta_d
+        )
+        phi_x = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a = normalize_phase(phi_a, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        phi_b = normalize_phase(phi_b, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        phi_c = normalize_phase(phi_c, self.config.phase_wrap)  # 회전 위상
+        phi_d = normalize_phase(phi_d, self.config.phase_wrap)  # 회전 위상
+        
+        self.state = Grid7DState(
+            phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b, phi_c=phi_c, phi_d=phi_d,
+            x=initial_x, y=initial_y, z=initial_z,
+            theta_a=initial_theta_a, theta_b=initial_theta_b, theta_c=initial_theta_c, theta_d=initial_theta_d,  # 회전 각도
+            v_x=0.0, v_y=0.0, v_z=0.0,
+            v_a=0.0, v_b=0.0, v_c=0.0, v_d=0.0,  # 회전 각속도
+            a_x=0.0, a_y=0.0, a_z=0.0,
+            alpha_a=0.0, alpha_b=0.0, alpha_c=0.0, alpha_d=0.0,  # 회전 각가속도
+            t_ms=0.0
+        )
+        
+        self.state_prev: Optional[Grid7DState] = None
+        
+        # Persistent Bias Estimator를 위한 상태
+        self.stable_state: Optional[Grid7DState] = None  # 기억된 안정 상태 (목표)
+        self.bias_estimate: np.ndarray = np.zeros(7)  # 누적 편향 추정 [x, y, z, theta_a, theta_b, theta_c, theta_d]
+        self.bias_learning_rate: float = 0.01  # 편향 학습률 (저주파)
+        self.update_counter: int = 0  # 업데이트 카운터 (저주파 제어용)
+        self.slow_update_threshold: int = 50  # 느린 업데이트 임계값 (50~100 step, 더 빠른 학습)
+    
+    def step(self, inp: Grid7DInput) -> Grid7DOutput:
+        """
+        Grid 7D Engine step 함수
+        
+        한 스텝 실행: 7D 경로 통합 → Ring 안정화 (5개) → 7D 좌표/각도 투영
+        
+        알고리즘:
+            1. 수치 적분 (7D): 속도/가속도 → 위상 업데이트
+                - 위치 축: v_new = v_old + a * dt_s, phi_new = phi_old + v * dt_s + 0.5 * a * dt_s²
+                - 회전 축: v_new = v_old + α * dt_s, phi_new = phi_old + v * dt_s + 0.5 * α * dt_s²
+            2. Ring 안정화 (5개): 위상을 Attractor에 붙잡기
+                - Ring X, Y, Z: 위치 위상 안정화
+                - Ring A, B: 회전 위상 안정화
+            3. 좌표/각도 투영: 위상 → 좌표/각도 변환
+                - 위치: (x, y, z) = projector.phase_to_coordinate(phi_x, phi_y, phi_z, ...)
+                - 각도: (θa, θb) = projector.phase_to_coordinate(..., phi_a, phi_b)
+        
+        Args:
+            inp: 7D 입력 데이터
+                - 위치: v_x, v_y, v_z [m/s], a_x, a_y, a_z [m/s²]
+                - 회전: v_a, v_b [deg/s] 또는 [rad/s], alpha_a, alpha_b [deg/s²] 또는 [rad/s²]
+        
+        Returns:
+            Grid7DOutput: 7D 출력 데이터
+                - 위치: (x, y, z) [m]
+                - 각도: (theta_a, theta_b) [deg]
+                - 위상: (phi_x, phi_y, phi_z, phi_a, phi_b) [rad]
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Made in GNJz
+        """
+        # 진단 모드: 이전 상태 저장
+        if self.config.diagnostics_enabled:
+            self.state_prev = Grid7DState(
+                phi_x=self.state.phi_x, phi_y=self.state.phi_y, phi_z=self.state.phi_z,
+                phi_a=self.state.phi_a, phi_b=self.state.phi_b,  # 회전 위상 ✨ NEW
+                x=self.state.x, y=self.state.y, z=self.state.z,
+                theta_a=self.state.theta_a, theta_b=self.state.theta_b,  # 회전 각도 ✨ NEW
+                v_x=self.state.v_x, v_y=self.state.v_y, v_z=self.state.v_z,
+                v_a=self.state.v_a, v_b=self.state.v_b,  # 회전 각속도 ✨ NEW
+                a_x=self.state.a_x, a_y=self.state.a_y, a_z=self.state.a_z,
+                alpha_a=self.state.alpha_a, alpha_b=self.state.alpha_b,  # 회전 각가속도 ✨ NEW
+                t_ms=self.state.t_ms
+            )
+        
+        # 1. 수치 적분 (7D): 속도/가속도 → 위상 업데이트
+        # 뉴턴 2법칙 적용: 위치 축 (F = ma), 회전 축 (τ = Iα)
+        new_phi_x, new_phi_y, new_phi_z, new_phi_a, new_phi_b, new_phi_c, new_phi_d, \
+        new_v_x, new_v_y, new_v_z, new_v_a, new_v_b, new_v_c, new_v_d = semi_implicit_euler_7d(
+            self.state, inp, self.config.dt_ms, self.config.tau_ms
+        )
+        
+        # 2. Ring 안정화 (7개): 위상을 Attractor에 붙잡기
+        # 위치 Ring (X, Y, Z) + 회전 Ring (A, B, C, D)
+        stabilized_phi_x, stabilized_phi_y, stabilized_phi_z, stabilized_phi_a, stabilized_phi_b, stabilized_phi_c, stabilized_phi_d, \
+        energy_x, energy_y, energy_z, energy_a, energy_b, energy_c, energy_d = \
+            self.ring_adapter.step(
+                new_phi_x, new_phi_y, new_phi_z, new_phi_a, new_phi_b, new_phi_c, new_phi_d,
+                self.config.dt_ms
+            )
+        
+        # 위상 정규화 (7D)
+        phi_x_norm = normalize_phase(stabilized_phi_x, self.config.phase_wrap)
+        phi_y_norm = normalize_phase(stabilized_phi_y, self.config.phase_wrap)
+        phi_z_norm = normalize_phase(stabilized_phi_z, self.config.phase_wrap)
+        phi_a_norm = normalize_phase(stabilized_phi_a, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        phi_b_norm = normalize_phase(stabilized_phi_b, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        phi_c_norm = normalize_phase(stabilized_phi_c, self.config.phase_wrap)  # 회전 위상
+        phi_d_norm = normalize_phase(stabilized_phi_d, self.config.phase_wrap)  # 회전 위상
+        
+        # 3. 좌표/각도 투영: 위상 → 좌표/각도 변환
+        x, y, z, theta_a, theta_b, theta_c, theta_d = self.projector.phase_to_coordinate(
+            phi_x_norm, phi_y_norm, phi_z_norm, phi_a_norm, phi_b_norm, phi_c_norm, phi_d_norm
+        )
+        
+        # 상태 업데이트 (7D)
+        self.state = Grid7DState(
+            phi_x=phi_x_norm, phi_y=phi_y_norm, phi_z=phi_z_norm,
+            phi_a=phi_a_norm, phi_b=phi_b_norm, phi_c=phi_c_norm, phi_d=phi_d_norm,  # 회전 위상
+            x=x, y=y, z=z,
+            theta_a=theta_a, theta_b=theta_b, theta_c=theta_c, theta_d=theta_d,  # 회전 각도
+            v_x=new_v_x, v_y=new_v_y, v_z=new_v_z,
+            v_a=new_v_a, v_b=new_v_b, v_c=new_v_c, v_d=new_v_d,  # 회전 각속도 [rad/s] (내부 단위)
+            a_x=inp.a_x if inp.a_x is not None else self.state.a_x,
+            a_y=inp.a_y if inp.a_y is not None else self.state.a_y,
+            a_z=inp.a_z if inp.a_z is not None else self.state.a_z,
+            # ⚠️ 단위: 입력 [deg/s²] → 내부 [rad/s²] 변환
+            #          state에는 rad/s² 저장 (내부 단위)
+            alpha_a=math.radians(inp.alpha_a) if inp.alpha_a is not None else self.state.alpha_a,  # 회전 각가속도 [rad/s²]
+            alpha_b=math.radians(inp.alpha_b) if inp.alpha_b is not None else self.state.alpha_b,  # 회전 각가속도 [rad/s²]
+            alpha_c=math.radians(inp.alpha_c) if inp.alpha_c is not None else self.state.alpha_c,  # 회전 각가속도 [rad/s²]
+            alpha_d=math.radians(inp.alpha_d) if inp.alpha_d is not None else self.state.alpha_d,  # 회전 각가속도 [rad/s²]
+            t_ms=self.state.t_ms + self.config.dt_ms
+        )
+        
+        # 출력 생성 (7D)
+        output_x, output_y, output_z, output_theta_a, output_theta_b, output_theta_c, output_theta_d = self.projector.phase_to_coordinate(
+            self.state.phi_x, self.state.phi_y, self.state.phi_z, self.state.phi_a, self.state.phi_b, self.state.phi_c, self.state.phi_d
+        )
+        
+        output = Grid7DOutput(
+            x=output_x, y=output_y, z=output_z,
+            theta_a=output_theta_a, theta_b=output_theta_b, theta_c=output_theta_c, theta_d=output_theta_d,  # 회전 각도
+            phi_x=self.state.phi_x, phi_y=self.state.phi_y, phi_z=self.state.phi_z,
+            phi_a=self.state.phi_a, phi_b=self.state.phi_b, phi_c=self.state.phi_c, phi_d=self.state.phi_d  # 회전 위상
+        )
+        
+        # 진단 모드: 에너지 검증 (TODO: 7D 에너지 계산으로 확장)
+        if self.config.diagnostics_enabled and self.state_prev is not None:
+            pass  # TODO: 7D 진단 구현
+        if self.config.energy_check_enabled and self.state_prev is not None:
+            pass  # TODO: 7D 에너지 검증
+        
+        return output
+    
+    def get_state(self) -> Grid7DState:
+        """현재 상태 반환 (7D)"""
+        return self.state
+    
+    def reset(
+        self,
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        theta_a: float = 0.0,  # 회전 각도 ✨ NEW
+        theta_b: float = 0.0   # 회전 각도 ✨ NEW
+    ):
+        """
+        상태 리셋 (7D)
+        
+        Args:
+            x: 초기 X 좌표 [m] (위치)
+            y: 초기 Y 좌표 [m] (위치)
+            z: 초기 Z 좌표 [m] (위치)
+            theta_a: 초기 A축 각도 [deg] (회전) ✨ NEW
+            theta_b: 초기 B축 각도 [deg] (회전) ✨ NEW
+        """
+        phi_x, phi_y, phi_z, phi_a, phi_b = self.projector.coordinate_to_phase(x, y, z, theta_a, theta_b)
+        phi_x = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a = normalize_phase(phi_a, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        phi_b = normalize_phase(phi_b, self.config.phase_wrap)  # 회전 위상 ✨ NEW
+        
+        self.state = Grid7DState(
+            phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b,
+            x=x, y=y, z=z,
+            theta_a=theta_a, theta_b=theta_b,  # 회전 각도 ✨ NEW
+            v_x=0.0, v_y=0.0, v_z=0.0,
+            v_a=0.0, v_b=0.0,  # 회전 각속도 ✨ NEW
+            a_x=0.0, a_y=0.0, a_z=0.0,
+            alpha_a=0.0, alpha_b=0.0,  # 회전 각가속도 ✨ NEW
+            t_ms=0.0
+        )
+        # TODO: ring_adapter.reset() 구현 (7D)
+        # self.ring_adapter.reset()
+    
+    def update(self, current_state: np.ndarray) -> None:
+        """
+        현재 상태를 Grid Engine에 업데이트 (Persistent Bias Estimator용)
+        
+        아주 느린 주기로 상태를 업데이트하고, 누적 편향을 학습합니다.
+        Grid Engine은 현재 상태를 위상 공간에 저장하고, 장기적인 편향을 추정합니다.
+        
+        Args:
+            current_state: 현재 상태 [x, y, z, theta_a, theta_b, theta_c, theta_d]
+                - x, y, z: 위치 [m]
+                - theta_a, theta_b, theta_c, theta_d: 각도 [deg]
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        self.update_counter += 1
+        
+        # ⚠️ 중요: 아주 느린 업데이트 (100~1000 step)
+        # 빠른 업데이트는 Grid Engine이 드리프트를 "따라가게" 만듦
+        if self.update_counter % self.slow_update_threshold != 0:
+            return  # 업데이트 스킵
+        
+        # ⚠️ 중요: 좌표는 원래 입력값을 직접 사용 (정규화로 인한 손실 방지)
+        x = current_state[0]  # 직접 저장
+        y = current_state[1]  # 직접 저장
+        z = current_state[2]  # 직접 저장
+        theta_a = current_state[3]  # 직접 저장
+        theta_b = current_state[4]  # 직접 저장
+        theta_c = current_state[5]  # 직접 저장
+        theta_d = current_state[6]  # 직접 저장
+        
+        # 현재 상태를 위상으로 변환 (위상 계산용)
+        phi_x, phi_y, phi_z, phi_a, phi_b, phi_c, phi_d = self.projector.coordinate_to_phase(
+            x, y, z, theta_a, theta_b, theta_c, theta_d
+        )
+        
+        # 위상 정규화
+        from ...common.coupling import normalize_phase
+        phi_x = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a = normalize_phase(phi_a, self.config.phase_wrap)
+        phi_b = normalize_phase(phi_b, self.config.phase_wrap)
+        phi_c = normalize_phase(phi_c, self.config.phase_wrap)
+        phi_d = normalize_phase(phi_d, self.config.phase_wrap)
+        
+        # 상태 업데이트 (속도/가속도는 0으로 유지, 위치/각도는 원래 입력값 직접 저장)
+        self.state = Grid7DState(
+            phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b, phi_c=phi_c, phi_d=phi_d,
+            x=x, y=y, z=z,  # 원래 좌표 직접 저장
+            theta_a=theta_a, theta_b=theta_b, theta_c=theta_c, theta_d=theta_d,  # 원래 각도 직접 저장
+            v_x=self.state.v_x, v_y=self.state.v_y, v_z=self.state.v_z,
+            v_a=self.state.v_a, v_b=self.state.v_b, v_c=self.state.v_c, v_d=self.state.v_d,
+            a_x=self.state.a_x, a_y=self.state.a_y, a_z=self.state.a_z,
+            alpha_a=self.state.alpha_a, alpha_b=self.state.alpha_b, alpha_c=self.state.alpha_c, alpha_d=self.state.alpha_d,
+            t_ms=self.state.t_ms
+        )
+        
+        # ✅ 핵심: 누적 편향 학습 (Persistent Bias Estimation)
+        if self.stable_state is not None:
+            # 현재 상태에서 목표 상태와의 차이 계산
+            current_array = np.array([x, y, z, theta_a, theta_b, theta_c, theta_d])
+            target_array = np.array([
+                self.stable_state.x,
+                self.stable_state.y,
+                self.stable_state.z,
+                self.stable_state.theta_a,
+                self.stable_state.theta_b,
+                self.stable_state.theta_c,
+                self.stable_state.theta_d
+            ])
+            
+            # 편향 = 현재 상태 - (목표 상태 + 기존 편향 추정)
+            # 이 편향은 장기적인 드리프트를 나타냄
+            expected_state = target_array + self.bias_estimate
+            drift = current_array - expected_state
+            
+            # 편향 추정 업데이트 (저주파 학습)
+            # bias_estimate는 장기적인 편향을 누적하여 학습
+            self.bias_estimate += self.bias_learning_rate * drift
+            
+            # 편향 추정 제한 (발산 방지)
+            max_bias = 0.1  # 최대 편향 제한 [m, m, m, deg, deg, deg, deg]
+            self.bias_estimate = np.clip(self.bias_estimate, -max_bias, max_bias)
+        else:
+            # 첫 업데이트: 현재 상태를 안정 상태로 저장
+            self.stable_state = Grid7DState(
+                phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b, phi_c=phi_c, phi_d=phi_d,
+                x=x, y=y, z=z,
+                theta_a=theta_a, theta_b=theta_b, theta_c=theta_c, theta_d=theta_d,
+                v_x=0.0, v_y=0.0, v_z=0.0,
+                v_a=0.0, v_b=0.0, v_c=0.0, v_d=0.0,
+                a_x=0.0, a_y=0.0, a_z=0.0,
+                alpha_a=0.0, alpha_b=0.0, alpha_c=0.0, alpha_d=0.0,
+                t_ms=self.state.t_ms
+            )
+            # 편향 추정 초기화
+            self.bias_estimate = np.zeros(7)
+    
+    def set_target(self, target_state: np.ndarray) -> None:
+        """
+        목표 상태 설정 (Persistent Bias Estimator용)
+        
+        Grid Engine이 목표 상태를 안정 상태로 기억하도록 설정합니다.
+        편향 추정은 이 목표 상태를 기준으로 수행됩니다.
+        
+        Args:
+            target_state: 목표 상태 [x, y, z, theta_a, theta_b, theta_c, theta_d]
+                - x, y, z: 위치 [m]
+                - theta_a, theta_b, theta_c, theta_d: 각도 [deg]
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        # 목표 상태를 위상으로 변환 (정규화 전)
+        phi_x, phi_y, phi_z, phi_a, phi_b, phi_c, phi_d = self.projector.coordinate_to_phase(
+            target_state[0],  # x [m]
+            target_state[1],  # y [m]
+            target_state[2],  # z [m]
+            target_state[3],  # theta_a [deg]
+            target_state[4],  # theta_b [deg]
+            target_state[5],  # theta_c [deg]
+            target_state[6]  # theta_d [deg]
+        )
+        
+        # 위상 정규화
+        from ...common.coupling import normalize_phase
+        phi_x_norm = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y_norm = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z_norm = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a_norm = normalize_phase(phi_a, self.config.phase_wrap)
+        phi_b_norm = normalize_phase(phi_b, self.config.phase_wrap)
+        phi_c_norm = normalize_phase(phi_c, self.config.phase_wrap)
+        phi_d_norm = normalize_phase(phi_d, self.config.phase_wrap)
+        
+        # ⚠️ 중요: 좌표는 원래 입력값을 직접 사용 (정규화로 인한 손실 방지)
+        # normalize_phase()가 2π를 0으로 정규화하면 좌표가 손실됨
+        x = target_state[0]  # 직접 저장
+        y = target_state[1]  # 직접 저장
+        z = target_state[2]  # 직접 저장
+        theta_a = target_state[3]  # 직접 저장
+        theta_b = target_state[4]  # 직접 저장
+        theta_c = target_state[5]  # 직접 저장
+        theta_d = target_state[6]  # 직접 저장
+        
+        # 목표 상태를 안정 상태로 설정
+        self.stable_state = Grid7DState(
+            phi_x=phi_x_norm, phi_y=phi_y_norm, phi_z=phi_z_norm, 
+            phi_a=phi_a_norm, phi_b=phi_b_norm, phi_c=phi_c_norm, phi_d=phi_d_norm,
+            x=x, y=y, z=z,  # 원래 좌표 직접 저장
+            theta_a=theta_a, theta_b=theta_b, theta_c=theta_c, theta_d=theta_d,  # 원래 각도 직접 저장
+            v_x=0.0, v_y=0.0, v_z=0.0,
+            v_a=0.0, v_b=0.0, v_c=0.0, v_d=0.0,
+            a_x=0.0, a_y=0.0, a_z=0.0,
+            alpha_a=0.0, alpha_b=0.0, alpha_c=0.0, alpha_d=0.0,
+            t_ms=self.state.t_ms
+        )
+        
+        # 편향 추정 초기화 (목표 변경 시 편향도 리셋)
+        self.bias_estimate = np.zeros(7)
+        self.update_counter = 0
+    
+    def provide_reference(self, current_state: np.ndarray = None) -> np.ndarray:
+        """
+        Reference Correction 제공 (Persistent Bias Estimator용)
+        
+        학습된 누적 편향(bias_estimate)을 기반으로 Reference Correction을 제공합니다.
+        이 보정치는 장기적인 드리프트를 억제하기 위해 Target에 추가됩니다.
+        
+        핵심 변경:
+        - 기존: reference = target - current (단순 차이 계산)
+        - 개선: reference = -bias_estimate (학습된 편향 보정)
+        
+        Args:
+            current_state: 현재 상태 [x, y, z, theta_a, theta_b] (선택적, 사용 안 함)
+                - Persistent Bias Estimator는 현재 상태가 아닌 학습된 편향을 사용
+        
+        Returns:
+            reference_correction: Reference Correction [x, y, z, theta_a, theta_b]
+                - x, y, z: 위치 보정 [m]
+                - theta_a, theta_b: 각도 보정 [deg]
+                - 방향: 학습된 편향을 상쇄하는 방향 (-bias_estimate)
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        if self.stable_state is None:
+            # 안정 상태가 없으면 0 반환
+            return np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        
+        # ✅ 핵심 변경: 학습된 편향을 반환
+        # reference = -bias_estimate
+        # 이렇게 하면 Grid Engine이 "현재 오차"가 아닌 "장기 편향"만 보정
+        reference_correction = -self.bias_estimate
+        
+        return reference_correction
+
