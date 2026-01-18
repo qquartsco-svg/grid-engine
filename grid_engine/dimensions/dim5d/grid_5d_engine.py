@@ -525,10 +525,11 @@ class Grid5DEngine:
                     current_time_s
                 ):
                     # 모든 Place Memory에 대해 Replay 수행
-                    replay_stats = self.replay_consolidation.replay_all_places(
-                        self.place_manager.place_memory,
-                        current_time_s
-                    )
+                    # 각 Place Memory에 대해 Consolidation 수행
+                    consolidated_count = 0
+                    for place_id, place_memory in self.place_manager.place_memory.items():
+                        if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):
+                            consolidated_count += 1
                     # 디버깅용 (필요시 출력)
                     # print(f"Replay/Consolidation: {replay_stats}")
                 
