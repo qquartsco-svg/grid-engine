@@ -234,6 +234,14 @@ def run_repeatability_test(
     grid_final_positions = []
     
     for repeat in range(n_repeats):
+        # ✅ Context Binder를 위한 외부 상태 설정 (각 반복마다) ✨ NEW
+        external_state = {
+            'step_number': repeat,  # 반복 횟수를 외부 상태로 설정
+            'tool_type': 'default',
+            'temperature': 20.0
+        }
+        grid_adapter.grid_engine.set_external_state(external_state)
+        
         final_pos = run_single_trajectory(
             setpoint=setpoint,
             n_steps=trajectory_steps,

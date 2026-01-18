@@ -108,6 +108,7 @@ from ...common.adapters.ring_5d_adapter import Ring5DAdapter
 from ...common.adapters.ring_adapter import RingAdapterConfig
 from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
 from ...common.context_binder import ContextBinder  # Context Binder ✨ NEW
+from ...common.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -220,6 +221,15 @@ class Grid5DEngine:
         self.context_binder = ContextBinder(num_contexts=10000)
         self.use_context_binder: bool = True  # Context Binder 사용 여부 (기본값: True)
         self.external_state: Dict[str, Any] = {}  # 외부 상태 (온도, 공구, 작업 단계 등)
+        
+        # Replay/Consolidation (휴지기에 기억 재검토 및 강화) ✨ NEW
+        self.replay_consolidation = ReplayConsolidation(
+            replay_threshold=5.0,  # 5초 이상 휴지기
+            consolidation_window=10,  # 최근 10회차 평균
+            significance_threshold=0.001  # 통계적 유의성 임계값
+        )
+        self.use_replay_consolidation: bool = True  # Replay/Consolidation 사용 여부 (기본값: True)
+        self.last_update_time_for_replay: float = 0.0  # Replay용 마지막 업데이트 시간
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -503,6 +513,27 @@ class Grid5DEngine:
             # 편향 추정 제한 (발산 방지)
             max_bias = 0.1  # 최대 편향 제한 [m, m, m, deg, deg]
             self.bias_estimate = np.clip(self.bias_estimate, -max_bias, max_bias)
+            
+            # ✅ Replay/Consolidation: 휴지기에 기억 재검토 ✨ NEW
+            if self.use_replay_consolidation and self.use_place_cells:
+                current_time_ms = self.state.t_ms
+                current_time_s = current_time_ms / 1000.0  # ms → s 변환
+                
+                # 휴지기 감지
+                if self.replay_consolidation.should_replay(
+                    self.last_update_time_for_replay / 1000.0,
+                    current_time_s
+                ):
+                    # 모든 Place Memory에 대해 Replay 수행
+                    replay_stats = self.replay_consolidation.replay_all_places(
+                        self.place_manager.place_memory,
+                        current_time_s
+                    )
+                    # 디버깅용 (필요시 출력)
+                    # print(f"Replay/Consolidation: {replay_stats}")
+                
+                # 마지막 업데이트 시간 기록
+                self.last_update_time_for_replay = current_time_ms
         else:
             # 첫 업데이트: 현재 상태를 안정 상태로 저장
             self.stable_state = Grid5DState(

@@ -14,8 +14,9 @@ Version: v0.4.0-alpha (Place Cells extension)
 License: MIT License
 """
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass, field
+from collections import deque
 import numpy as np
 import math
 
@@ -31,7 +32,11 @@ class PlaceMemory:
     bias_estimate: np.ndarray = field(default_factory=lambda: np.zeros(5))  # 5D bias [x, y, z, theta_a, theta_b]
     visit_count: int = 0
     last_visit_time: float = 0.0
+    last_update_time: float = 0.0  # 마지막 업데이트 시간 (Replay용) ✨ NEW
     place_center: Optional[np.ndarray] = None  # Place Field 중심 위상 벡터 [phi_x, phi_y, phi_z, phi_a, phi_b]
+    bias_history: deque = field(default_factory=lambda: deque(maxlen=10))  # 최근 10회차 bias 이력 (Replay용) ✨ NEW
+    consolidated_bias: Optional[np.ndarray] = None  # Consolidated bias (통계적 유의성 검증 통과) ✨ NEW
+    consolidation_time: float = 0.0  # Consolidation 수행 시간 ✨ NEW
     
     def update_bias(
         self,
@@ -57,6 +62,32 @@ class PlaceMemory:
                 (1 - learning_rate) * self.bias_estimate
             )
         self.visit_count += 1
+    
+    def add_bias_to_history(self, bias: np.ndarray) -> None:
+        """
+        Bias 이력에 추가 (Replay/Consolidation용)
+        
+        Args:
+            bias: 새로운 bias 추정값
+        """
+        self.bias_history.append(bias.copy())
+    
+    def get_recent_biases(self, n: int) -> List[np.ndarray]:
+        """
+        최근 N회차의 bias 이력 반환 (Replay/Consolidation용)
+        
+        Args:
+            n: 반환할 회차 수
+        
+        Returns:
+            최근 N회차의 bias 리스트
+        """
+        if len(self.bias_history) == 0:
+            return []
+        
+        # 최근 N개 반환 (이력이 N개보다 적으면 모두 반환)
+        recent = list(self.bias_history)[-n:]
+        return recent
     
     def update_place_center(
         self,
@@ -242,11 +273,15 @@ class PlaceCellManager:
         # Bias 업데이트
         place_memory.update_bias(bias, learning_rate)
         
+        # Bias 이력에 추가 (Replay/Consolidation용) ✨ NEW
+        place_memory.add_bias_to_history(bias)
+        
         # Place Field 중심 업데이트
         place_memory.update_place_center(phase_vector, learning_rate=0.05)
         
         # 방문 시간 업데이트
         place_memory.last_visit_time = current_time
+        place_memory.last_update_time = current_time  # Replay용 ✨ NEW
     
     def get_bias_estimate(
         self,
