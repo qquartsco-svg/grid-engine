@@ -98,6 +98,7 @@ License: MIT License
 
 from typing import Optional
 import math
+import numpy as np
 from .config_5d import Grid5DConfig
 from .types_5d import Grid5DState, Grid5DInput, Grid5DOutput, Grid5DDiagnostics
 from .integrator_5d import semi_implicit_euler_5d
@@ -197,6 +198,13 @@ class Grid5DEngine:
         )
         
         self.state_prev: Optional[Grid5DState] = None
+        
+        # Persistent Bias Estimator를 위한 상태
+        self.stable_state: Optional[Grid5DState] = None  # 기억된 안정 상태 (목표)
+        self.bias_estimate: np.ndarray = np.zeros(5)  # 누적 편향 추정 [x, y, z, theta_a, theta_b]
+        self.bias_learning_rate: float = 0.01  # 편향 학습률 (저주파)
+        self.update_counter: int = 0  # 업데이트 카운터 (저주파 제어용)
+        self.slow_update_threshold: int = 50  # 느린 업데이트 임계값 (50~100 step, 더 빠른 학습)
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -351,4 +359,195 @@ class Grid5DEngine:
         )
         # TODO: ring_adapter.reset() 구현 (5D)
         # self.ring_adapter.reset()
+    
+    def update(self, current_state: np.ndarray) -> None:
+        """
+        현재 상태를 Grid Engine에 업데이트 (Persistent Bias Estimator용)
+        
+        아주 느린 주기로 상태를 업데이트하고, 누적 편향을 학습합니다.
+        Grid Engine은 현재 상태를 위상 공간에 저장하고, 장기적인 편향을 추정합니다.
+        
+        Args:
+            current_state: 현재 상태 [x, y, z, theta_a, theta_b]
+                - x, y, z: 위치 [m]
+                - theta_a, theta_b: 각도 [deg]
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        self.update_counter += 1
+        
+        # ⚠️ 중요: 아주 느린 업데이트 (100~1000 step)
+        # 빠른 업데이트는 Grid Engine이 드리프트를 "따라가게" 만듦
+        if self.update_counter % self.slow_update_threshold != 0:
+            return  # 업데이트 스킵
+        
+        # ⚠️ 중요: 좌표는 원래 입력값을 직접 사용 (정규화로 인한 손실 방지)
+        x = current_state[0]  # 직접 저장
+        y = current_state[1]  # 직접 저장
+        z = current_state[2]  # 직접 저장
+        theta_a = current_state[3]  # 직접 저장
+        theta_b = current_state[4]  # 직접 저장
+        
+        # 현재 상태를 위상으로 변환 (위상 계산용)
+        phi_x, phi_y, phi_z, phi_a, phi_b = self.projector.coordinate_to_phase(
+            x, y, z, theta_a, theta_b
+        )
+        
+        # 위상 정규화
+        from ...common.coupling import normalize_phase
+        phi_x = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a = normalize_phase(phi_a, self.config.phase_wrap)
+        phi_b = normalize_phase(phi_b, self.config.phase_wrap)
+        
+        # 상태 업데이트 (속도/가속도는 0으로 유지, 위치/각도는 원래 입력값 직접 저장)
+        self.state = Grid5DState(
+            phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b,
+            x=x, y=y, z=z,  # 원래 좌표 직접 저장
+            theta_a=theta_a, theta_b=theta_b,  # 원래 각도 직접 저장
+            v_x=self.state.v_x, v_y=self.state.v_y, v_z=self.state.v_z,
+            v_a=self.state.v_a, v_b=self.state.v_b,
+            a_x=self.state.a_x, a_y=self.state.a_y, a_z=self.state.a_z,
+            alpha_a=self.state.alpha_a, alpha_b=self.state.alpha_b,
+            t_ms=self.state.t_ms
+        )
+        
+        # ✅ 핵심: 누적 편향 학습 (Persistent Bias Estimation)
+        if self.stable_state is not None:
+            # 현재 상태에서 목표 상태와의 차이 계산
+            current_array = np.array([x, y, z, theta_a, theta_b])
+            target_array = np.array([
+                self.stable_state.x,
+                self.stable_state.y,
+                self.stable_state.z,
+                self.stable_state.theta_a,
+                self.stable_state.theta_b
+            ])
+            
+            # 편향 = 현재 상태 - (목표 상태 + 기존 편향 추정)
+            # 이 편향은 장기적인 드리프트를 나타냄
+            expected_state = target_array + self.bias_estimate
+            drift = current_array - expected_state
+            
+            # 편향 추정 업데이트 (저주파 학습)
+            # bias_estimate는 장기적인 편향을 누적하여 학습
+            self.bias_estimate += self.bias_learning_rate * drift
+            
+            # 편향 추정 제한 (발산 방지)
+            max_bias = 0.1  # 최대 편향 제한 [m, m, m, deg, deg]
+            self.bias_estimate = np.clip(self.bias_estimate, -max_bias, max_bias)
+        else:
+            # 첫 업데이트: 현재 상태를 안정 상태로 저장
+            self.stable_state = Grid5DState(
+                phi_x=phi_x, phi_y=phi_y, phi_z=phi_z, phi_a=phi_a, phi_b=phi_b,
+                x=x, y=y, z=z,
+                theta_a=theta_a, theta_b=theta_b,
+                v_x=0.0, v_y=0.0, v_z=0.0,
+                v_a=0.0, v_b=0.0,
+                a_x=0.0, a_y=0.0, a_z=0.0,
+                alpha_a=0.0, alpha_b=0.0,
+                t_ms=self.state.t_ms
+            )
+            # 편향 추정 초기화
+            self.bias_estimate = np.zeros(5)
+    
+    def set_target(self, target_state: np.ndarray) -> None:
+        """
+        목표 상태 설정 (Persistent Bias Estimator용)
+        
+        Grid Engine이 목표 상태를 안정 상태로 기억하도록 설정합니다.
+        편향 추정은 이 목표 상태를 기준으로 수행됩니다.
+        
+        Args:
+            target_state: 목표 상태 [x, y, z, theta_a, theta_b]
+                - x, y, z: 위치 [m]
+                - theta_a, theta_b: 각도 [deg]
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        # 목표 상태를 위상으로 변환 (정규화 전)
+        phi_x, phi_y, phi_z, phi_a, phi_b = self.projector.coordinate_to_phase(
+            target_state[0],  # x [m]
+            target_state[1],  # y [m]
+            target_state[2],  # z [m]
+            target_state[3],  # theta_a [deg]
+            target_state[4]   # theta_b [deg]
+        )
+        
+        # 위상 정규화
+        from ...common.coupling import normalize_phase
+        phi_x_norm = normalize_phase(phi_x, self.config.phase_wrap)
+        phi_y_norm = normalize_phase(phi_y, self.config.phase_wrap)
+        phi_z_norm = normalize_phase(phi_z, self.config.phase_wrap)
+        phi_a_norm = normalize_phase(phi_a, self.config.phase_wrap)
+        phi_b_norm = normalize_phase(phi_b, self.config.phase_wrap)
+        
+        # ⚠️ 중요: 좌표는 원래 입력값을 직접 사용 (정규화로 인한 손실 방지)
+        # normalize_phase()가 2π를 0으로 정규화하면 좌표가 손실됨
+        x = target_state[0]  # 직접 저장
+        y = target_state[1]  # 직접 저장
+        z = target_state[2]  # 직접 저장
+        theta_a = target_state[3]  # 직접 저장
+        theta_b = target_state[4]  # 직접 저장
+        
+        # 목표 상태를 안정 상태로 설정
+        self.stable_state = Grid5DState(
+            phi_x=phi_x_norm, phi_y=phi_y_norm, phi_z=phi_z_norm, 
+            phi_a=phi_a_norm, phi_b=phi_b_norm,
+            x=x, y=y, z=z,  # 원래 좌표 직접 저장
+            theta_a=theta_a, theta_b=theta_b,  # 원래 각도 직접 저장
+            v_x=0.0, v_y=0.0, v_z=0.0,
+            v_a=0.0, v_b=0.0,
+            a_x=0.0, a_y=0.0, a_z=0.0,
+            alpha_a=0.0, alpha_b=0.0,
+            t_ms=self.state.t_ms
+        )
+        
+        # 편향 추정 초기화 (목표 변경 시 편향도 리셋)
+        self.bias_estimate = np.zeros(5)
+        self.update_counter = 0
+    
+    def provide_reference(self, current_state: np.ndarray = None) -> np.ndarray:
+        """
+        Reference Correction 제공 (Persistent Bias Estimator용)
+        
+        학습된 누적 편향(bias_estimate)을 기반으로 Reference Correction을 제공합니다.
+        이 보정치는 장기적인 드리프트를 억제하기 위해 Target에 추가됩니다.
+        
+        핵심 변경:
+        - 기존: reference = target - current (단순 차이 계산)
+        - 개선: reference = -bias_estimate (학습된 편향 보정)
+        
+        Args:
+            current_state: 현재 상태 [x, y, z, theta_a, theta_b] (선택적, 사용 안 함)
+                - Persistent Bias Estimator는 현재 상태가 아닌 학습된 편향을 사용
+        
+        Returns:
+            reference_correction: Reference Correction [x, y, z, theta_a, theta_b]
+                - x, y, z: 위치 보정 [m]
+                - theta_a, theta_b: 각도 보정 [deg]
+                - 방향: 학습된 편향을 상쇄하는 방향 (-bias_estimate)
+        
+        Author: GNJz
+        Created: 2026-01-20
+        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Made in GNJz
+        """
+        if self.stable_state is None:
+            # 안정 상태가 없으면 0 반환
+            return np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        
+        # ✅ 핵심 변경: 학습된 편향을 반환
+        # reference = -bias_estimate
+        # 이렇게 하면 Grid Engine이 "현재 오차"가 아닌 "장기 편향"만 보정
+        reference_correction = -self.bias_estimate
+        
+        return reference_correction
 
