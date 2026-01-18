@@ -14,7 +14,7 @@
 
 **Grid Engine**은 Ring Attractor를 직교 결합하여 2D/3D/4D/5D 공간 위치 상태를 안정적으로 유지하는 **정밀 운동 제어 엔진**입니다.
 
-**⚠️ 현재 상태**: 이 프로젝트는 **시뮬레이션 및 이론 검증 단계**입니다. 실제 물리 제어 시스템에 대한 벤치마킹이나 산업 현장 검증은 아직 완료되지 않았습니다. 코드는 수학적 모델의 정확성을 검증하는 단계이며, 실제 적용 시 추가 검증이 필요합니다.
+**⚠️ 현재 상태**: 이 프로젝트는 **시뮬레이션 및 이론 검증 단계**입니다. 벤치마크 초기 결과가 도출되었으며, **지속적인 검증과 개선이 진행 중**입니다. 코드는 수학적 모델의 정확성을 검증하는 단계이며, 실제 적용 시 추가 검증이 필요합니다.
 
 **핵심 전략**: 기존 제어 시스템을 대체하는 것이 아니라, **침투(Infiltration)**하여 효과를 극대화하는 것을 목표로 합니다. 독립적이지만 호환성이 좋은 모듈러 설계로, 기존 시스템과의 통합을 고려한 설계입니다.
 
@@ -308,6 +308,11 @@ grid-engine/
 │   ├── run_grid_visual_demo.py     # 2D 시각화 데모
 │   └── run_grid_3d_basic_demo.py   # 3D 기본 데모 ✨ NEW
 │   └── run_grid_3d_visual_demo.py  # 3D 시각화 데모 ✨ NEW
+├── benchmarks/              # 벤치마크 스크립트 (검증 중) 🔬 NEW
+│   ├── drift_test.py              # 장기 드리프트 억제 테스트
+│   ├── phase_coherence_test.py    # 5축 위상 일관성 테스트
+│   ├── repeatability_test.py      # 반복 가공 정밀도 테스트
+│   └── recovery_test.py           # 외란 복귀 테스트
 ├── tests/                   # 테스트 스위트
 │   ├── test_grid_engine_*.py       # 2D 테스트 (6개)
 │   └── test_grid_3d_engine_*.py    # 3D 테스트 (2개) ✨ NEW
@@ -449,6 +454,9 @@ inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
 - `docs/INTEGRATION_STRATEGY.md` - **통합 전략 (침투 전략)** - ⚠️ 핵심 ✨ NEW
 - `docs/NEWTONS_3RD_LAW_ANALYSIS.md` - **뉴턴 3법칙 분석**
 - `docs/UNIT_CONTRACT.md` - **단위 계약 (Unit Contract)** - ⚠️ 중요 ✨ NEW
+- `docs/FINAL_RESULTS.md` - **벤치마크 초기 결과** (검증 중) 🔬 NEW
+- `docs/PROBLEM_ANALYSIS.md` - **문제 분석 및 해결 방법** 🔬 NEW
+- `docs/GRID_ENGINE_ARCHITECTURE.md` - **아키텍처 문서** (Reference Stabilizer) 🔬 NEW
 
 ### 사용 가이드
 - `README.md` (한국어 - 메인)
@@ -478,6 +486,72 @@ pytest tests/ -v
 ```bash
 pytest tests/test_grid_engine_init.py -v
 ```
+
+---
+
+## 🔬 벤치마크 초기 결과 (검증 중)
+
+⚠️ **주의**: 아래 결과는 초기 검증 결과입니다. 지속적인 테스트와 개선이 진행 중입니다.
+
+### Persistent Bias Estimator 구현
+
+Grid Engine은 **Persistent Bias Estimator**로 구현되어 장기 드리프트를 학습하고 보정합니다.
+
+**구현 내용**:
+- 장기 드리프트 학습 및 보정
+- Reference Stabilizer 아키텍처
+- 저주파 드리프트 억제
+
+### 초기 벤치마크 결과
+
+#### 🔬 장기 드리프트 억제 테스트
+
+**파일**: `benchmarks/drift_test.py`
+
+**초기 결과** (검증 중):
+- RMS 오차: **+38.1% 개선** (초기 결과)
+- 최종 오차: **+51.3% 개선** (초기 결과)
+- Drift Slope: **+3393.3% 개선** (초기 결과)
+
+**초기 판정**: 🔬 **긍정적인 초기 결과** - 추가 검증 및 다양한 시나리오 테스트 필요
+
+#### 🔬 5축 위상 일관성 테스트
+
+**파일**: `benchmarks/phase_coherence_test.py`
+
+**초기 결과** (검증 중):
+- 위상 일관성 점수: **+67.2% 개선** (초기 결과)
+
+**초기 판정**: 🔬 **긍정적인 초기 결과** - 추가 검증 및 다양한 시나리오 테스트 필요
+
+#### ⚠️ 반복 가공 정밀도 테스트
+
+**파일**: `benchmarks/repeatability_test.py`
+
+**초기 결과** (최적화 진행 중):
+- 표준 편차: **+6.0% 개선** (제한적)
+
+**초기 판정**: ⚠️ **제한적인 초기 결과** - 최적화 및 추가 검증 진행 중
+
+### 벤치마크 실행
+
+```bash
+# 장기 드리프트 억제 테스트
+python3 benchmarks/drift_test.py
+
+# 5축 위상 일관성 테스트
+python3 benchmarks/phase_coherence_test.py
+
+# 반복 가공 정밀도 테스트
+python3 benchmarks/repeatability_test.py
+```
+
+### 관련 문서
+
+- `docs/FINAL_RESULTS.md` - 벤치마크 초기 결과 상세 (검증 중)
+- `docs/PROBLEM_ANALYSIS.md` - 문제 분석 및 해결 방법
+- `docs/GRID_ENGINE_ARCHITECTURE.md` - 아키텍처 문서
+- `benchmarks/` - 벤치마크 스크립트
 
 ---
 
@@ -525,9 +599,11 @@ pytest tests/test_grid_engine_init.py -v
 ---
 
 **Last Updated**: 2026-01-20  
-**Version**: v0.4.0-alpha (5D 확장 완료) ✨  
-**Status**: Alpha (2D/3D/4D/5D 제품화 준비 완료) ✅  
-**Tag**: v0.4.0-alpha.5d.complete  
+**Version**: v0.4.0-alpha (5D 확장, 벤치마크 검증 중) 🔬  
+**Status**: Alpha (2D/3D/4D/5D 구현 완료, 벤치마크 검증 진행 중) 🔬  
+**Tag**: v0.4.0-alpha.benchmark-in-progress  
 **Author**: GNJz  
 **Made in GNJz**
+
+⚠️ **주의**: 이 프로젝트는 지속적으로 검증되고 개선되고 있습니다. 벤치마크 결과는 초기 검증 결과이며, 추가 테스트와 최적화가 진행 중입니다.
 
