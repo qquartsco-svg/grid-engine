@@ -658,6 +658,7 @@ inp = Grid5DInput(v_a=0.5, v_b=0.3)  # [deg/s]
 - `docs/FINAL_RESULTS.md` - **벤치마크 초기 결과** (검증 중) 🔬 NEW
 - `docs/PROBLEM_ANALYSIS.md` - **문제 분석 및 해결 방법** 🔬 NEW
 - `docs/GRID_ENGINE_ARCHITECTURE.md` - **아키텍처 문서** (Reference Stabilizer) 🔬 NEW
+- `docs/HIPPOCAMPUS_COMPLETION_ROADMAP.md` - **해마 완성 로드맵** (기억 통합 계층) 🔬 NEW ⚠️ 중요
 
 ### 사용 가이드
 - `README.md` (한국어 - 메인)
