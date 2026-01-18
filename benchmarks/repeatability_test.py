@@ -234,13 +234,19 @@ def run_repeatability_test(
     grid_final_positions = []
     
     for repeat in range(n_repeats):
-        # ✅ Context Binder를 위한 외부 상태 설정 (각 반복마다) ✨ NEW
+        # ✅ Context Binder를 위한 외부 상태 설정 (같은 Context로 유지) ✨ FIXED
+        # 실제 반복 가공 시나리오: 같은 가공을 반복하므로 같은 Context여야 함
         external_state = {
-            'step_number': repeat,  # 반복 횟수를 외부 상태로 설정
             'tool_type': 'default',
-            'temperature': 20.0
+            'temperature': 20.0,
+            'operation': 'repeatability_test'  # 같은 작업으로 유지
         }
         grid_adapter.grid_engine.set_external_state(external_state)
+        
+        # ✅ 각 반복 사이에 휴지기 시뮬레이션 (Replay/Consolidation 트리거) ✨ NEW
+        if repeat > 0:
+            # 이전 반복 후 5초 이상 경과 시뮬레이션
+            grid_adapter.grid_engine.state.t_ms += 6000  # 6초 추가
         
         final_pos = run_single_trajectory(
             setpoint=setpoint,

@@ -494,6 +494,16 @@ class Grid5DEngine:
                         current_time=self.state.t_ms,
                         learning_rate=self.bias_learning_rate
                     )
+                    
+                    # ✅ 중요: Place Memory도 함께 업데이트 (bias_history 쌓기 위해) ✨ NEW
+                    # Context Binder를 사용하더라도 Place Memory의 bias_history는 필요함 (Replay/Consolidation용)
+                    self.place_manager.update_place_memory(
+                        place_id=place_id,
+                        phase_vector=phase_vector,
+                        bias=drift,  # 같은 drift를 Place Memory에도 기록
+                        current_time=self.state.t_ms,
+                        learning_rate=self.bias_learning_rate
+                    )
                 else:
                     # Place만 사용 (Context 없음)
                     self.place_manager.update_place_memory(
