@@ -106,6 +106,7 @@ from ...common.coupling import normalize_phase
 from ...common.energy import compute_diagnostics, calculate_energy  # TODO: 5D 에너지 계산으로 확장
 from ...common.adapters.ring_5d_adapter import Ring5DAdapter
 from ...common.adapters.ring_adapter import RingAdapterConfig
+from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -201,10 +202,18 @@ class Grid5DEngine:
         
         # Persistent Bias Estimator를 위한 상태
         self.stable_state: Optional[Grid5DState] = None  # 기억된 안정 상태 (목표)
-        self.bias_estimate: np.ndarray = np.zeros(5)  # 누적 편향 추정 [x, y, z, theta_a, theta_b]
+        self.bias_estimate: np.ndarray = np.zeros(5)  # 전역 편향 추정 (하위 호환성) [x, y, z, theta_a, theta_b]
         self.bias_learning_rate: float = 0.01  # 편향 학습률 (저주파)
         self.update_counter: int = 0  # 업데이트 카운터 (저주파 제어용)
         self.slow_update_threshold: int = 50  # 느린 업데이트 임계값 (50~100 step, 더 빠른 학습)
+        
+        # Place Cells (장소별 독립적인 기억) ✨ NEW
+        self.place_manager = PlaceCellManager(
+            num_places=1000,
+            phase_wrap=self.config.phase_wrap,
+            quantization_level=100
+        )
+        self.use_place_cells: bool = True  # Place Cells 사용 여부 (기본값: True)
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -360,6 +369,21 @@ class Grid5DEngine:
         # TODO: ring_adapter.reset() 구현 (5D)
         # self.ring_adapter.reset()
     
+    def get_phase_vector(self) -> np.ndarray:
+        """
+        현재 위상 벡터 반환 (Place Cells용)
+        
+        Returns:
+            위상 벡터 [phi_x, phi_y, phi_z, phi_a, phi_b] (rad)
+        """
+        return np.array([
+            self.state.phi_x,
+            self.state.phi_y,
+            self.state.phi_z,
+            self.state.phi_a,
+            self.state.phi_b
+        ])
+    
     def update(self, current_state: np.ndarray) -> None:
         """
         현재 상태를 Grid Engine에 업데이트 (Persistent Bias Estimator용)
@@ -433,9 +457,28 @@ class Grid5DEngine:
             expected_state = target_array + self.bias_estimate
             drift = current_array - expected_state
             
-            # 편향 추정 업데이트 (저주파 학습)
-            # bias_estimate는 장기적인 편향을 누적하여 학습
-            self.bias_estimate += self.bias_learning_rate * drift
+            # ✅ Place Cells 사용 시: Place별 독립적인 bias 학습 ✨ NEW
+            if self.use_place_cells:
+                # 현재 위상 벡터 추출
+                phase_vector = self.get_phase_vector()
+                
+                # Place ID 할당
+                place_id = self.place_manager.get_place_id(phase_vector)
+                
+                # Place별 bias 업데이트
+                self.place_manager.update_place_memory(
+                    place_id=place_id,
+                    phase_vector=phase_vector,
+                    bias=drift,
+                    current_time=self.state.t_ms,
+                    learning_rate=self.bias_learning_rate
+                )
+                
+                # 전역 bias도 업데이트 (하위 호환성)
+                self.bias_estimate += self.bias_learning_rate * drift
+            else:
+                # 기존 방식: 전역 bias만 업데이트
+                self.bias_estimate += self.bias_learning_rate * drift
             
             # 편향 추정 제한 (발산 방지)
             max_bias = 0.1  # 최대 편향 제한 [m, m, m, deg, deg]
@@ -544,10 +587,17 @@ class Grid5DEngine:
             # 안정 상태가 없으면 0 반환
             return np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         
-        # ✅ 핵심 변경: 학습된 편향을 반환
-        # reference = -bias_estimate
-        # 이렇게 하면 Grid Engine이 "현재 오차"가 아닌 "장기 편향"만 보정
-        reference_correction = -self.bias_estimate
+        # ✅ Place Cells 사용 시: Place별 bias 반환 ✨ NEW
+        if self.use_place_cells:
+            # 현재 위상 벡터 추출
+            phase_vector = self.get_phase_vector()
+            
+            # Place별 bias 추정값 반환
+            place_bias = self.place_manager.get_bias_estimate(phase_vector)
+            reference_correction = -place_bias
+        else:
+            # 기존 방식: 전역 bias 반환
+            reference_correction = -self.bias_estimate
         
         return reference_correction
 
