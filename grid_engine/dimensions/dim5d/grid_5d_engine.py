@@ -96,7 +96,7 @@ Version: v0.4.0-alpha (5D extension)
 License: MIT License
 """
 
-from typing import Optional
+from typing import Optional, Dict, Any
 import math
 import numpy as np
 from .config_5d import Grid5DConfig
@@ -107,6 +107,7 @@ from ...common.energy import compute_diagnostics, calculate_energy  # TODO: 5D �
 from ...common.adapters.ring_5d_adapter import Ring5DAdapter
 from ...common.adapters.ring_adapter import RingAdapterConfig
 from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
+from ...common.context_binder import ContextBinder  # Context Binder ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -214,6 +215,11 @@ class Grid5DEngine:
             quantization_level=100
         )
         self.use_place_cells: bool = True  # Place Cells 사용 여부 (기본값: True)
+        
+        # Context Binder (Place + Context 조합으로 기억 분리) ✨ NEW
+        self.context_binder = ContextBinder(num_contexts=10000)
+        self.use_context_binder: bool = True  # Context Binder 사용 여부 (기본값: True)
+        self.external_state: Dict[str, Any] = {}  # 외부 상태 (온도, 공구, 작업 단계 등)
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -465,14 +471,28 @@ class Grid5DEngine:
                 # Place ID 할당
                 place_id = self.place_manager.get_place_id(phase_vector)
                 
-                # Place별 bias 업데이트
-                self.place_manager.update_place_memory(
-                    place_id=place_id,
-                    phase_vector=phase_vector,
-                    bias=drift,
-                    current_time=self.state.t_ms,
-                    learning_rate=self.bias_learning_rate
-                )
+                # ✅ Context Binder 사용 시: Place + Context 조합으로 bias 학습 ✨ NEW
+                if self.use_context_binder:
+                    # Context ID 할당
+                    context_id = self.context_binder.get_context_id(self.external_state)
+                    
+                    # Place + Context 조합으로 bias 업데이트
+                    self.context_binder.update_context_memory(
+                        place_id=place_id,
+                        context_id=context_id,
+                        bias=drift,
+                        current_time=self.state.t_ms,
+                        learning_rate=self.bias_learning_rate
+                    )
+                else:
+                    # Place만 사용 (Context 없음)
+                    self.place_manager.update_place_memory(
+                        place_id=place_id,
+                        phase_vector=phase_vector,
+                        bias=drift,
+                        current_time=self.state.t_ms,
+                        learning_rate=self.bias_learning_rate
+                    )
                 
                 # 전역 bias도 업데이트 (하위 호환성)
                 self.bias_estimate += self.bias_learning_rate * drift
@@ -592,12 +612,39 @@ class Grid5DEngine:
             # 현재 위상 벡터 추출
             phase_vector = self.get_phase_vector()
             
-            # Place별 bias 추정값 반환
-            place_bias = self.place_manager.get_bias_estimate(phase_vector)
-            reference_correction = -place_bias
+            # Place ID 할당
+            place_id = self.place_manager.get_place_id(phase_vector)
+            
+            # ✅ Context Binder 사용 시: Place + Context 조합으로 bias 반환 ✨ NEW
+            if self.use_context_binder:
+                # Context ID 할당
+                context_id = self.context_binder.get_context_id(self.external_state)
+                
+                # Place + Context 조합의 bias 추정값 반환
+                context_bias = self.context_binder.get_bias_estimate(place_id, context_id)
+                reference_correction = -context_bias
+            else:
+                # Place만 사용 (Context 없음)
+                place_bias = self.place_manager.get_bias_estimate(phase_vector)
+                reference_correction = -place_bias
         else:
             # 기존 방식: 전역 bias 반환
             reference_correction = -self.bias_estimate
         
         return reference_correction
+    
+    def set_external_state(self, external_state: Dict[str, Any]) -> None:
+        """
+        외부 상태 설정 (Context Binder용)
+        
+        외부 상태 예시:
+        - tool_type: 공구 타입 (예: "tool_A", "tool_B")
+        - temperature: 온도 (예: 20.0, 25.0)
+        - step_number: 작업 단계 (예: 0, 1, 2)
+        - material: 재료 타입 (예: "aluminum", "steel")
+        
+        Args:
+            external_state: 외부 상태 딕셔너리
+        """
+        self.external_state = external_state.copy()
 
