@@ -14,12 +14,13 @@ Version: v0.5.0-alpha (Cerebellum Design)
 License: MIT License
 """
 
-# 소뇌 모듈은 현재 설계 단계입니다.
-# 구현 예정: CerebellumEngine 클래스
+from .cerebellum_engine import CerebellumEngine, CerebellumConfig, create_cerebellum_engine
 
 __version__ = '0.5.0-alpha'
 
 __all__ = [
-    # 향후 구현 예정
+    'CerebellumEngine',
+    'CerebellumConfig',
+    'create_cerebellum_engine',
 ]
 
