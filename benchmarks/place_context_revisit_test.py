@@ -91,6 +91,9 @@ class GridAdapter:
         self.pid = PIDController()
         self.step_counter = 0
         self.slow_update_cycle = 5
+        # ✅ 벤치마크에서는 Replay 트리거/학습이 잘 일어나도록 엔진 업데이트를 더 자주 수행
+        if hasattr(self.grid, "slow_update_threshold"):
+            self.grid.slow_update_threshold = 1
 
     def step(self, setpoint: np.ndarray, current: np.ndarray, external_state: Dict) -> np.ndarray:
         # ✅ 중요: 외부 setpoint 변경을 GridEngine 내부 target(stable_state)에도 동기화
@@ -122,23 +125,27 @@ def run_episode(
     injected_bias: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, List[float]]:
     external_state = external_state or {}
-    state = setpoint.copy()
+    # ✅ true_state(실제) / measured_state(센서) 분리
+    # - injected_bias는 센서/측정 쪽(관측)에만 주입되어야 학습/보정의 이득이 제대로 드러남
+    true_state = setpoint.copy()
     pid = PIDController()
     errors: List[float] = []
     injected_bias = injected_bias if injected_bias is not None else np.zeros(5)
 
     for _ in range(n_steps):
-        # 관측 노이즈(고주파) + 구조적 편향(저주파) 주입
-        state += np.random.normal(0, 1e-4, 5) + injected_bias
+        # 관측(센서) = true + noise + bias
+        measured_state = true_state + np.random.normal(0, 1e-4, 5) + injected_bias
         if controller == "pid":
-            u = pid.control(setpoint, state)
+            u = pid.control(setpoint, measured_state)
         else:
             assert adapter is not None
-            u = adapter.step(setpoint, state, external_state)
-        state += u * 0.1
-        errors.append(float(np.linalg.norm(setpoint - state)))
+            u = adapter.step(setpoint, measured_state, external_state)
 
-    return state, errors
+        # 시스템 실제 상태 업데이트 (제어 입력 반영)
+        true_state += u * 0.1
+        errors.append(float(np.linalg.norm(setpoint - true_state)))
+
+    return true_state, errors
 
 
 def main():
@@ -173,9 +180,14 @@ def main():
     # Place + Replay
     pc = GridAdapter(A, enable_place=True, enable_context=False, replay_enabled=True)
     _, _ = run_episode("grid", A, steps_warm, pc, external_state={"op": "A"}, injected_bias=A_BIAS)
+    # ✅ 증거 로그: Replay 전 reference_correction 크기
+    pre_corr = pc.grid.provide_reference()
+    print(f"\n[DEBUG] Place(+Replay) pre-replay |corr| = {float(np.linalg.norm(pre_corr)):.6f}")
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500
         pc.grid.update(A)
+    post_corr = pc.grid.provide_reference()
+    print(f"[DEBUG] Place(+Replay) post-replay |corr| = {float(np.linalg.norm(post_corr)):.6f}")
     _, _ = run_episode("grid", B, steps_move, pc, external_state={"op": "B"}, injected_bias=B_BIAS)
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500
