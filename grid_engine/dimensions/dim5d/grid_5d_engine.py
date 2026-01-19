@@ -736,6 +736,7 @@ class Grid5DEngine:
                 # Place + Context 조합의 bias 추정값 반환
                 context_bias = self.context_binder.get_bias_estimate(place_id, context_id)
                 reference_correction = -context_bias
+                reference_correction = -context_bias
             else:
                 # Place만 사용 (Context 없음)
                 place_bias = self.place_manager.get_bias_estimate(phase_vector)
