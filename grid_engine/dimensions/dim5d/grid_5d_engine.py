@@ -106,11 +106,11 @@ from ...common.coupling import normalize_phase
 from ...common.energy import compute_diagnostics, calculate_energy  # TODO: 5D 에너지 계산으로 확장
 from ...common.adapters.ring_5d_adapter import Ring5DAdapter
 from ...common.adapters.ring_adapter import RingAdapterConfig
-from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
-from ...common.context_binder import ContextBinder  # Context Binder ✨ NEW
-from ...common.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
-from ...common.learning_gate import LearningGate, LearningGateConfig  # Learning Gate ✨ NEW
-from ...common.replay_buffer import ReplayBuffer, TrajectoryPoint  # Replay Buffer ✨ NEW
+from ...hippocampus.place_cells import PlaceCellManager  # Place Cells ✨ NEW
+from ...hippocampus.context_binder import ContextBinder  # Context Binder ✨ NEW
+from ...hippocampus.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
+from ...hippocampus.learning_gate import LearningGate, LearningGateConfig  # Learning Gate ✨ NEW
+from ...hippocampus.replay_buffer import ReplayBuffer, TrajectoryPoint  # Replay Buffer ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
