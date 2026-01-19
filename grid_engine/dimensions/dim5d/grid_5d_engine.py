@@ -109,6 +109,7 @@ from ...common.adapters.ring_adapter import RingAdapterConfig
 from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
 from ...common.context_binder import ContextBinder  # Context Binder ✨ NEW
 from ...common.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
+from ...common.learning_gate import LearningGate, LearningGateConfig  # Learning Gate ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -215,7 +216,15 @@ class Grid5DEngine:
             phase_wrap=self.config.phase_wrap,
             quantization_level=100
         )
-        self.use_place_cells: bool = True  # Place Cells 사용 여부 (기본값: True)
+        self.use_place_cells: bool = False  # Place Cells 사용 여부 (기본값: False, Learning Gate로 제어) ✨ FIXED
+        
+        # Learning Gate (학습 조건 제어) ✨ NEW
+        self.learning_gate = LearningGate(
+            config=LearningGateConfig(
+                default_enabled=False,  # 기본 OFF
+                replay_only=True  # Replay phase에서만 학습
+            )
+        )
         
         # Context Binder (Place + Context 조합으로 기억 분리) ✨ NEW
         self.context_binder = ContextBinder(num_contexts=10000)
@@ -538,8 +547,18 @@ class Grid5DEngine:
                     # 각 Place Memory에 대해 Consolidation 수행
                     consolidated_count = 0
                     for place_id, place_memory in self.place_manager.place_memory.items():
-                        if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):
-                            consolidated_count += 1
+                        # ✅ Replay phase에서 Learning Gate 확인 ✨ NEW
+                        # Replay phase에서는 학습 조건을 완화하여 Consolidation 수행
+                        if self.learning_gate.should_learn(
+                            current_state=np.array([
+                                self.state.x, self.state.y, self.state.z,
+                                self.state.theta_a, self.state.theta_b
+                            ]),
+                            place_visit_count=place_memory.visit_count,
+                            is_replay_phase=True  # Replay phase
+                        ):
+                            if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):
+                                consolidated_count += 1
                     # 디버깅용 (필요시 출력)
                     # print(f"Replay/Consolidation: {replay_stats}")
                 
