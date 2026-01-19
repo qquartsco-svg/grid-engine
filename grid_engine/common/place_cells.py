@@ -285,21 +285,86 @@ class PlaceCellManager:
     
     def get_bias_estimate(
         self,
-        phase_vector: np.ndarray
+        phase_vector: np.ndarray,
+        use_blending: bool = True,
+        top_k: int = 5,
+        sigma: float = 0.5
     ) -> np.ndarray:
         """
         현재 위상 벡터에 해당하는 Place의 bias 추정값 반환
         
+        Soft-Switching (Place Blending) 지원:
+        - Hard-switching: 단일 Place의 bias만 반환
+        - Soft-switching: 주변 Place Cell들의 활성화 강도에 따라 가중 평균
+        
+        수식 (Soft-switching):
+        B_final = Σ(a_i · Bias_i) / Σ(a_i)
+        
+        여기서:
+        - a_i: Place Cell i의 활성화 강도 (가우시안)
+        - Bias_i: Place Cell i의 bias_estimate
+        
         Args:
-            phase_vector: 현재 위상 벡터
+            phase_vector: 현재 위상 벡터 [phi_x, phi_y, phi_z, phi_a, phi_b] (rad)
+            use_blending: Place Blending 사용 여부 (기본값: True)
+            top_k: 블렌딩에 사용할 상위 K개 Place Cell (기본값: 5)
+            sigma: 가우시안 활성화 함수의 표준 편차 (기본값: 0.5)
         
         Returns:
-            Bias 추정값 (없으면 0 벡터)
+            bias_estimate: Place별 bias 추정값 [x, y, z, theta_a, theta_b]
         """
-        place_id = self.get_place_id(phase_vector)
-        place_memory = self.get_place_memory(place_id)
+        if not use_blending or len(self.place_memory) == 0:
+            # Hard-switching: 단일 Place의 bias만 반환
+            place_id = self.get_place_id(phase_vector)
+            place_memory = self.get_place_memory(place_id)
+            return place_memory.bias_estimate.copy()
         
-        return place_memory.bias_estimate.copy()
+        # Soft-switching: 주변 Place Cell들의 가중 평균
+        # 1. 모든 Place Cell의 활성화 강도 계산
+        activations = []
+        for place_id, place_memory in self.place_memory.items():
+            if place_memory.place_center is None:
+                continue
+            
+            # 가우시안 활성화 강도 계산
+            activation = self.place_cell_activation(
+                phase_vector=phase_vector,
+                place_center=place_memory.place_center,
+                sigma=sigma
+            )
+            
+            activations.append((activation, place_id, place_memory))
+        
+        if len(activations) == 0:
+            # 활성화된 Place가 없으면 기본값 반환
+            if len(self.place_memory) > 0:
+                first_place = next(iter(self.place_memory.values()))
+                return np.zeros_like(first_place.bias_estimate)
+            return np.zeros(5)  # 기본값: 5D
+        
+        # 2. 활성화 강도 순으로 정렬하여 상위 K개 선택
+        activations.sort(key=lambda x: x[0], reverse=True)
+        top_activations = activations[:top_k]
+        
+        # 3. 가중 평균 계산
+        total_activation = sum(a[0] for a in top_activations)
+        
+        if total_activation < 1e-10:  # 활성화가 거의 없으면 기본값 반환
+            if len(top_activations) > 0:
+                _, _, first_memory = top_activations[0]
+                return np.zeros_like(first_memory.bias_estimate)
+            return np.zeros(5)  # 기본값: 5D
+        
+        # 가중 평균: B_final = Σ(a_i · Bias_i) / Σ(a_i)
+        # 첫 번째 Place Memory의 bias 크기로 초기화
+        _, _, first_memory = top_activations[0]
+        weighted_bias = np.zeros_like(first_memory.bias_estimate)
+        
+        for activation, place_id, place_memory in top_activations:
+            weight = activation / total_activation
+            weighted_bias += weight * place_memory.bias_estimate
+        
+        return weighted_bias
     
     def merge_nearby_places(
         self,
