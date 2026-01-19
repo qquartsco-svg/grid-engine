@@ -111,6 +111,8 @@ from ...hippocampus.context_binder import ContextBinder  # Context Binder ✨ NE
 from ...hippocampus.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
 from ...hippocampus.learning_gate import LearningGate, LearningGateConfig  # Learning Gate ✨ NEW
 from ...hippocampus.replay_buffer import ReplayBuffer, TrajectoryPoint  # Replay Buffer ✨ NEW
+from ...hippocampus.universal_memory import UniversalMemory  # Universal Memory ✨ NEW
+from ...cerebellum.cerebellum_engine import CerebellumEngine, CerebellumConfig  # Cerebellum ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -247,6 +249,29 @@ class Grid5DEngine:
         self.use_replay_consolidation: bool = True  # Replay/Consolidation 사용 여부 (기본값: True)
         self.last_update_time_for_replay: float = 0.0  # Replay용 마지막 업데이트 시간
         self.replay_enabled: bool = True  # Replay 활성화 여부 (기본값: True) ✨ NEW
+        
+        # Universal Memory (범용 기억 인터페이스) ✨ NEW
+        self.universal_memory = UniversalMemory(
+            memory_dim=5,
+            num_places=1000,
+            num_contexts=10000,
+            phase_wrap=self.config.phase_wrap,
+            quantization_level=100
+        )
+        
+        # Cerebellum Engine (소뇌 엔진) ✨ NEW
+        self.cerebellum = CerebellumEngine(
+            memory_dim=5,
+            config=CerebellumConfig(
+                feedforward_gain=0.5,
+                trial_gain=0.3,
+                variance_gain=0.2,
+                memory_gain=0.4,
+                correction_weight=1.0
+            ),
+            memory=self.universal_memory
+        )
+        self.use_cerebellum: bool = True  # Cerebellum 사용 여부 (기본값: True) ✨ NEW
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -719,35 +744,44 @@ class Grid5DEngine:
         self.bias_estimate = np.zeros(5)
         self.update_counter = 0
     
-    def provide_reference(self, current_state: np.ndarray = None) -> np.ndarray:
+    def provide_reference(
+        self,
+        current_state: np.ndarray = None,
+        target_state: np.ndarray = None,
+        velocity: np.ndarray = None,
+        acceleration: np.ndarray = None
+    ) -> np.ndarray:
         """
-        Reference Correction 제공 (Persistent Bias Estimator용)
+        Reference Correction 제공 (Persistent Bias Estimator + Cerebellum)
         
-        학습된 누적 편향(bias_estimate)을 기반으로 Reference Correction을 제공합니다.
-        이 보정치는 장기적인 드리프트를 억제하기 위해 Target에 추가됩니다.
+        해마 메모리의 학습된 편향과 소뇌 엔진의 즉각 보정을 결합하여 Reference Correction을 제공합니다.
         
-        핵심 변경:
-        - 기존: reference = target - current (단순 차이 계산)
-        - 개선: reference = -bias_estimate (학습된 편향 보정)
+        핵심 구조:
+        - 해마: 장기 기억 기반 보정 (느림, 분~시간~일)
+        - 소뇌: 즉각 보정 (빠름, ms)
+        - 결합: reference = hippocampus_correction + cerebellum_correction
         
         Args:
-            current_state: 현재 상태 [x, y, z, theta_a, theta_b] (선택적, 사용 안 함)
-                - Persistent Bias Estimator는 현재 상태가 아닌 학습된 편향을 사용
+            current_state: 현재 상태 [x, y, z, theta_a, theta_b] (선택적)
+            target_state: 목표 상태 [x, y, z, theta_a, theta_b] (소뇌용)
+            velocity: 현재 속도 [v_x, v_y, v_z, v_a, v_b] (소뇌용)
+            acceleration: 현재 가속도 [a_x, a_y, a_z, alpha_a, alpha_b] (소뇌용)
         
         Returns:
             reference_correction: Reference Correction [x, y, z, theta_a, theta_b]
-                - x, y, z: 위치 보정 [m]
-                - theta_a, theta_b: 각도 보정 [deg]
-                - 방향: 학습된 편향을 상쇄하는 방향 (-bias_estimate)
+                - 해마 보정 + 소뇌 보정
         
         Author: GNJz
         Created: 2026-01-20
-        Updated: 2026-01-20 (Persistent Bias Estimator로 재정의)
+        Updated: 2026-01-20 (Hippocampus + Cerebellum 통합)
         Made in GNJz
         """
         if self.stable_state is None:
             # 안정 상태가 없으면 0 반환
             return np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        
+        # 1. 해마 메모리 보정 (장기 기억 기반)
+        hippocampus_correction = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         
         # ✅ Place Cells 사용 시: Place별 bias 반환 ✨ NEW
         if self.use_place_cells:
@@ -785,7 +819,53 @@ class Grid5DEngine:
                     print(f"[REF] place_id={place_id}, bias_norm={np.linalg.norm(place_bias):.6f}, corr_norm={np.linalg.norm(reference_correction):.6f}, visit_count={place_memory.visit_count}, place_center={place_memory.place_center is not None}")
         else:
             # 기존 방식: 전역 bias 반환
-            reference_correction = -self.bias_estimate
+            hippocampus_correction = -self.bias_estimate
+        
+        # 2. 소뇌 엔진 보정 (즉각 보정) ✨ NEW
+        cerebellum_correction = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        
+        if self.use_cerebellum and target_state is not None:
+            # 현재 상태가 없으면 현재 출력 상태 사용
+            if current_state is None:
+                current_state = np.array([
+                    self.state.x,
+                    self.state.y,
+                    self.state.z,
+                    self.state.theta_a,
+                    self.state.theta_b
+                ])
+            
+            # 속도/가속도가 없으면 현재 상태에서 계산
+            if velocity is None:
+                velocity = np.array([
+                    self.state.v_x,
+                    self.state.v_y,
+                    self.state.v_z,
+                    self.state.v_a,
+                    self.state.v_b
+                ])
+            
+            if acceleration is None:
+                acceleration = np.array([
+                    self.state.a_x,
+                    self.state.a_y,
+                    self.state.a_z,
+                    self.state.alpha_a,
+                    self.state.alpha_b
+                ])
+            
+            # 소뇌 보정값 계산
+            cerebellum_correction = self.cerebellum.compute_correction(
+                current_state=current_state,
+                target_state=target_state,
+                velocity=velocity,
+                acceleration=acceleration,
+                context=self.external_state,
+                dt=self.config.dt_ms / 1000.0  # ms → s 변환
+            )
+        
+        # 3. 통합 보정 (해마 + 소뇌)
+        reference_correction = hippocampus_correction + cerebellum_correction
         
         return reference_correction
     
