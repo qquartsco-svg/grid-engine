@@ -530,10 +530,14 @@ class Grid5DEngine:
                     context_id=context_id
                 )
                 # ⚠️ Online phase에서는 bias 업데이트 안 함 (Replay phase에서만 수행)
+            else:
+                # Place Cells를 사용하지 않는 경우: 전역 bias만 업데이트
+                self.bias_estimate += self.bias_learning_rate * drift
             
             # 전역 bias는 계속 업데이트 (Persistent Bias Estimator)
-            self.bias_estimate += self.bias_learning_rate * drift
-            else:
+            # Place Cells 사용 시에도 전역 bias는 업데이트 (하위 호환성)
+            if not (self.use_place_cells and self.replay_enabled):
+                self.bias_estimate += self.bias_learning_rate * drift
                 # 기존 방식: 전역 bias만 업데이트
                 self.bias_estimate += self.bias_learning_rate * drift
             
