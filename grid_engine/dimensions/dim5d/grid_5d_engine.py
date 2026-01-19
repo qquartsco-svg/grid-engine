@@ -241,8 +241,8 @@ class Grid5DEngine:
         # Replay/Consolidation (휴지기에 기억 재검토 및 강화) ✨ NEW
         self.replay_consolidation = ReplayConsolidation(
             replay_threshold=1.0,  # 1초 이상 휴지기 (더 빠른 트리거) ✨ FIXED
-            consolidation_window=5,  # 최근 5회차 평균 (더 작은 윈도우) ✨ FIXED
-            significance_threshold=0.01  # 통계적 유의성 임계값 (더 관대) ✨ FIXED
+            consolidation_window=3,  # 최근 3회차 평균 (더 작은 윈도우로 조정) ✨ FIXED
+            significance_threshold=0.1  # 통계적 유의성 임계값 (더 관대하게 조정) ✨ FIXED
         )
         self.use_replay_consolidation: bool = True  # Replay/Consolidation 사용 여부 (기본값: True)
         self.last_update_time_for_replay: float = 0.0  # Replay용 마지막 업데이트 시간
@@ -633,7 +633,8 @@ class Grid5DEngine:
                             
                             # ✅ DEBUG: Place 업데이트 로그 ✨ NEW
                             if total_places_updated <= 5:  # 처음 5개만 상세 로그
-                                print(f"[REPLAY] Place {place_id} | bias_norm: {np.linalg.norm(bias_before):.6f} -> {np.linalg.norm(bias_after):.6f} | mean_error_norm: {mean_error_norm:.6f} | visit_count: {place_memory.visit_count}")
+                                bias_history_len = len(place_memory.bias_history)
+                                print(f"[REPLAY] Place {place_id} | bias_norm: {np.linalg.norm(bias_before):.6f} -> {np.linalg.norm(bias_after):.6f} | mean_error_norm: {mean_error_norm:.6f} | visit_count: {place_memory.visit_count} | bias_history_len: {bias_history_len}")
                             
                             # Consolidation 수행
                             if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):

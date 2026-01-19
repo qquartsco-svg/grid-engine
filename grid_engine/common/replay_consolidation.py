@@ -150,14 +150,17 @@ class ReplayConsolidation:
         Returns:
             Consolidation 성공 여부
         """
-        # 충분한 방문 횟수가 없으면 Consolidation 불가
-        if place_memory.visit_count < self.consolidation_window:
+        # ✅ bias_history가 있으면 Consolidation 가능 (visit_count는 참고용) ✨ FIXED
+        # Replay에서 여러 번 업데이트하면 bias_history가 쌓임
+        if len(place_memory.bias_history) < 2:  # 최소 2개 이상 필요
             return False
         
-        # 최근 N회차의 bias 이력 가져오기
-        recent_biases = place_memory.get_recent_biases(self.consolidation_window)
+        # 최근 N회차의 bias 이력 가져오기 (가능한 만큼)
+        available_history = len(place_memory.bias_history)
+        window_size = min(self.consolidation_window, available_history)  # 실제 사용 가능한 크기
+        recent_biases = place_memory.get_recent_biases(window_size)
         
-        if len(recent_biases) < self.consolidation_window:
+        if len(recent_biases) < 2:  # 최소 2개 이상 필요 (완화)
             return False  # 충분한 이력이 없음
         
         # 최근 N회차의 bias를 평균하여 노이즈 제거
