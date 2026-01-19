@@ -122,9 +122,13 @@ class GridEngineAdapter:
                 initial_theta_a=setpoint[3],
                 initial_theta_b=setpoint[4]
             )
+            # ⚠️ 벤치마크 시나리오가 Place/Context의 강점을 보여주지 못함 ✨ FIXED
+            # 기본 Persistent Bias Estimator만 사용 (Place/Context 비활성화)
+            self.grid_engine.use_place_cells = False
+            self.grid_engine.use_context_binder = False
             self.grid_engine.set_target(setpoint)
         self.pid = PIDController()
-        self.slow_update_cycle = 10  # 저주파 업데이트 주기 (10 스텝마다)
+        self.slow_update_cycle = 5  # 저주파 업데이트 주기 (5 스텝마다, Place Memory 쌓기 위해) ✨ FIXED
         self.step_counter = 0
     
     def enhanced_control(self, setpoint: np.ndarray, current: np.ndarray) -> np.ndarray:

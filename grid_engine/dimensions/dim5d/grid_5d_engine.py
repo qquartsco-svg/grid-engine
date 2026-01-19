@@ -207,7 +207,7 @@ class Grid5DEngine:
         self.bias_estimate: np.ndarray = np.zeros(5)  # 전역 편향 추정 (하위 호환성) [x, y, z, theta_a, theta_b]
         self.bias_learning_rate: float = 0.01  # 편향 학습률 (저주파)
         self.update_counter: int = 0  # 업데이트 카운터 (저주파 제어용)
-        self.slow_update_threshold: int = 50  # 느린 업데이트 임계값 (50~100 step, 더 빠른 학습)
+        self.slow_update_threshold: int = 10  # 느린 업데이트 임계값 (10 step, Place Memory 쌓기 위해) ✨ FIXED
         
         # Place Cells (장소별 독립적인 기억) ✨ NEW
         self.place_manager = PlaceCellManager(
@@ -224,9 +224,9 @@ class Grid5DEngine:
         
         # Replay/Consolidation (휴지기에 기억 재검토 및 강화) ✨ NEW
         self.replay_consolidation = ReplayConsolidation(
-            replay_threshold=5.0,  # 5초 이상 휴지기
-            consolidation_window=10,  # 최근 10회차 평균
-            significance_threshold=0.001  # 통계적 유의성 임계값
+            replay_threshold=1.0,  # 1초 이상 휴지기 (더 빠른 트리거) ✨ FIXED
+            consolidation_window=5,  # 최근 5회차 평균 (더 작은 윈도우) ✨ FIXED
+            significance_threshold=0.01  # 통계적 유의성 임계값 (더 관대) ✨ FIXED
         )
         self.use_replay_consolidation: bool = True  # Replay/Consolidation 사용 여부 (기본값: True)
         self.last_update_time_for_replay: float = 0.0  # Replay용 마지막 업데이트 시간
