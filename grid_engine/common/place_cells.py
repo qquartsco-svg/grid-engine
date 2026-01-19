@@ -324,7 +324,8 @@ class PlaceCellManager:
         activations = []
         for place_id, place_memory in self.place_memory.items():
             if place_memory.place_center is None:
-                continue
+                # ✅ place_center가 None이면 현재 phase_vector로 설정 ✨ FIXED
+                place_memory.place_center = phase_vector.copy()
             
             # 가우시안 활성화 강도 계산
             activation = self.place_cell_activation(
@@ -333,14 +334,18 @@ class PlaceCellManager:
                 sigma=sigma
             )
             
-            activations.append((activation, place_id, place_memory))
+            # ✅ 활성화가 너무 낮으면 스킵 (1e-5 이상만 고려) ✨ FIXED
+            if activation > 1e-5:
+                activations.append((activation, place_id, place_memory))
         
         if len(activations) == 0:
-            # 활성화된 Place가 없으면 기본값 반환
-            if len(self.place_memory) > 0:
-                first_place = next(iter(self.place_memory.values()))
-                return np.zeros_like(first_place.bias_estimate)
-            return np.zeros(5)  # 기본값: 5D
+            # 활성화된 Place가 없으면 place_id 기반으로 fallback ✨ FIXED
+            place_id = self.get_place_id(phase_vector)
+            place_memory = self.get_place_memory(place_id)
+            # place_center가 None이면 지금 설정
+            if place_memory.place_center is None:
+                place_memory.place_center = phase_vector.copy()
+            return place_memory.bias_estimate.copy()
         
         # 2. 활성화 강도 순으로 정렬하여 상위 K개 선택
         activations.sort(key=lambda x: x[0], reverse=True)

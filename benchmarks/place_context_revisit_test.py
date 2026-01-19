@@ -183,11 +183,35 @@ def main():
     # ✅ 증거 로그: Replay 전 reference_correction 크기
     pre_corr = pc.grid.provide_reference()
     print(f"\n[DEBUG] Place(+Replay) pre-replay |corr| = {float(np.linalg.norm(pre_corr)):.6f}")
+    
+    # ✅ Replay 전 Place Memory 상태 확인
+    if hasattr(pc.grid, "place_manager"):
+        phase_vec = pc.grid.get_phase_vector()
+        place_id = pc.grid.place_manager.get_place_id(phase_vec)
+        place_mem = pc.grid.place_manager.get_place_memory(place_id)
+        print(f"[DEBUG] pre-replay | place_id={place_id}, visit_count={place_mem.visit_count}, bias_norm={np.linalg.norm(place_mem.bias_estimate):.6f}, place_center={place_mem.place_center is not None}")
+        print(f"[DEBUG] pre-replay | total_places={len(pc.grid.place_manager.place_memory)}")
+        # 모든 Place의 bias_norm 출력 (처음 5개만)
+        for pid, pm in list(pc.grid.place_manager.place_memory.items())[:5]:
+            print(f"[DEBUG] pre-replay | place_id={pid}, visit_count={pm.visit_count}, bias_norm={np.linalg.norm(pm.bias_estimate):.6f}")
+    
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500
         pc.grid.update(A)
+    
     post_corr = pc.grid.provide_reference()
     print(f"[DEBUG] Place(+Replay) post-replay |corr| = {float(np.linalg.norm(post_corr)):.6f}")
+    
+    # ✅ Replay 후 Place Memory 상태 확인
+    if hasattr(pc.grid, "place_manager"):
+        phase_vec = pc.grid.get_phase_vector()
+        place_id = pc.grid.place_manager.get_place_id(phase_vec)
+        place_mem = pc.grid.place_manager.get_place_memory(place_id)
+        print(f"[DEBUG] post-replay | place_id={place_id}, visit_count={place_mem.visit_count}, bias_norm={np.linalg.norm(place_mem.bias_estimate):.6f}, place_center={place_mem.place_center is not None}")
+        print(f"[DEBUG] post-replay | total_places={len(pc.grid.place_manager.place_memory)}")
+        # 모든 Place의 bias_norm 출력 (처음 5개만)
+        for pid, pm in list(pc.grid.place_manager.place_memory.items())[:5]:
+            print(f"[DEBUG] post-replay | place_id={pid}, visit_count={pm.visit_count}, bias_norm={np.linalg.norm(pm.bias_estimate):.6f}")
     _, _ = run_episode("grid", B, steps_move, pc, external_state={"op": "B"}, injected_bias=B_BIAS)
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500

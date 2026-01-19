@@ -562,8 +562,14 @@ class Grid5DEngine:
                         min_segment_length=5
                     )
                     
+                    # ✅ DEBUG: Replay 시작 로그 ✨ NEW
+                    print(f"[REPLAY] 시작 | segments={len(stable_segments)}, buffer_size={len(self.replay_buffer.buffer)}")
+                    
                     # ✅ 안정적인 구간만 재생하여 Place/Context bias 업데이트 ✨ NEW
                     consolidated_count = 0
+                    total_places_updated = 0
+                    total_bias_norm = 0.0
+                    
                     for segment in stable_segments:
                         # 각 구간의 Place별로 그룹화
                         place_groups: Dict[Any, List[TrajectoryPoint]] = {}
@@ -581,6 +587,7 @@ class Grid5DEngine:
                             # 구간의 평균 오차 계산 (안정적인 구간의 진짜 편향)
                             errors = np.array([p.error for p in points])
                             mean_error = np.mean(errors, axis=0)
+                            mean_error_norm = np.linalg.norm(mean_error)
                             
                             # Place ID 및 Context ID 추출
                             if isinstance(key, tuple):
@@ -603,16 +610,37 @@ class Grid5DEngine:
                             # Place Memory 업데이트
                             phase_vector = points[0].phase_vector  # 첫 포인트의 위상 사용
                             place_memory = self.place_manager.get_place_memory(place_id)
+                            
+                            # ✅ 중요: place_center 설정 (블렌딩을 위해 필수) ✨ FIXED
+                            if place_memory.place_center is None:
+                                place_memory.place_center = phase_vector.copy()
+                            else:
+                                # Place Field 중심 업데이트 (EMA)
+                                place_memory.update_place_center(phase_vector, learning_rate=0.05)
+                            
+                            # Bias 업데이트
+                            bias_before = place_memory.bias_estimate.copy()
                             place_memory.update_bias(
                                 new_bias=mean_error,
                                 learning_rate=self.bias_learning_rate
                             )
+                            bias_after = place_memory.bias_estimate.copy()
                             place_memory.add_bias_to_history(mean_error)
                             place_memory.last_update_time = current_time_s
+                            
+                            total_places_updated += 1
+                            total_bias_norm += np.linalg.norm(bias_after)
+                            
+                            # ✅ DEBUG: Place 업데이트 로그 ✨ NEW
+                            if total_places_updated <= 5:  # 처음 5개만 상세 로그
+                                print(f"[REPLAY] Place {place_id} | bias_norm: {np.linalg.norm(bias_before):.6f} -> {np.linalg.norm(bias_after):.6f} | mean_error_norm: {mean_error_norm:.6f} | visit_count: {place_memory.visit_count}")
                             
                             # Consolidation 수행
                             if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):
                                 consolidated_count += 1
+                    
+                    # ✅ DEBUG: Replay 종료 로그 ✨ NEW
+                    print(f"[REPLAY] 종료 | places_updated={total_places_updated}, consolidated={consolidated_count}, avg_bias_norm={total_bias_norm/max(1, total_places_updated):.6f}")
                 
                 # 마지막 업데이트 시간 기록
                 self.last_update_time_for_replay = current_time_ms
@@ -746,6 +774,14 @@ class Grid5DEngine:
                     sigma=0.5  # 가우시안 표준 편차
                 )
                 reference_correction = -place_bias
+                
+                # ✅ DEBUG: provide_reference 로그 (처음 몇 번만) ✨ NEW
+                if not hasattr(self, '_debug_ref_count'):
+                    self._debug_ref_count = 0
+                self._debug_ref_count += 1
+                if self._debug_ref_count <= 3:
+                    place_memory = self.place_manager.get_place_memory(place_id)
+                    print(f"[REF] place_id={place_id}, bias_norm={np.linalg.norm(place_bias):.6f}, corr_norm={np.linalg.norm(reference_correction):.6f}, visit_count={place_memory.visit_count}, place_center={place_memory.place_center is not None}")
         else:
             # 기존 방식: 전역 bias 반환
             reference_correction = -self.bias_estimate
