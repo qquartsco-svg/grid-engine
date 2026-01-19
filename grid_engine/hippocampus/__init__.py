@@ -24,6 +24,7 @@ from .replay_consolidation import (
     ReplayConsolidationManager
 )
 from .replay_buffer import TrajectoryPoint, ReplayBuffer
+from .universal_memory import UniversalMemory, create_universal_memory
 
 __all__ = [
     # Place Cells
@@ -42,6 +43,9 @@ __all__ = [
     # Replay Buffer
     'TrajectoryPoint',
     'ReplayBuffer',
+    # Universal Memory Interface
+    'UniversalMemory',
+    'create_universal_memory',
 ]
 
 __version__ = '0.4.0-alpha'
