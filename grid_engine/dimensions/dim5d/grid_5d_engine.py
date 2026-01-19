@@ -110,6 +110,7 @@ from ...common.place_cells import PlaceCellManager  # Place Cells ✨ NEW
 from ...common.context_binder import ContextBinder  # Context Binder ✨ NEW
 from ...common.replay_consolidation import ReplayConsolidation  # Replay/Consolidation ✨ NEW
 from ...common.learning_gate import LearningGate, LearningGateConfig  # Learning Gate ✨ NEW
+from ...common.replay_buffer import ReplayBuffer, TrajectoryPoint  # Replay Buffer ✨ NEW
 from .projector_5d import Coordinate5DProjector
 
 
@@ -231,6 +232,12 @@ class Grid5DEngine:
         self.use_context_binder: bool = True  # Context Binder 사용 여부 (기본값: True)
         self.external_state: Dict[str, Any] = {}  # 외부 상태 (온도, 공구, 작업 단계 등)
         
+        # Replay Buffer (Online phase에서 기록만) ✨ NEW
+        self.replay_buffer = ReplayBuffer(
+            max_size=10000,  # 최대 버퍼 크기
+            stable_window=10  # 안정성 판단 윈도우
+        )
+        
         # Replay/Consolidation (휴지기에 기억 재검토 및 강화) ✨ NEW
         self.replay_consolidation = ReplayConsolidation(
             replay_threshold=1.0,  # 1초 이상 휴지기 (더 빠른 트리거) ✨ FIXED
@@ -239,6 +246,7 @@ class Grid5DEngine:
         )
         self.use_replay_consolidation: bool = True  # Replay/Consolidation 사용 여부 (기본값: True)
         self.last_update_time_for_replay: float = 0.0  # Replay용 마지막 업데이트 시간
+        self.replay_enabled: bool = True  # Replay 활성화 여부 (기본값: True) ✨ NEW
     
     def step(self, inp: Grid5DInput) -> Grid5DOutput:
         """
@@ -482,49 +490,49 @@ class Grid5DEngine:
             expected_state = target_array + self.bias_estimate
             drift = current_array - expected_state
             
-            # ✅ Place Cells 사용 시: Place별 독립적인 bias 학습 ✨ NEW
-            if self.use_place_cells:
+            # ✅ Online Phase: Replay Buffer에 기록만 (bias 업데이트 금지) ✨ NEW
+            # ⚠️ 중요: Place/Context bias 업데이트는 Replay phase에서만 수행 ✨ NEW
+            if self.use_place_cells and self.replay_enabled:
                 # 현재 위상 벡터 추출
                 phase_vector = self.get_phase_vector()
                 
                 # Place ID 할당
                 place_id = self.place_manager.get_place_id(phase_vector)
                 
-                # ✅ Context Binder 사용 시: Place + Context 조합으로 bias 학습 ✨ NEW
+                # Context ID 할당 (Context Binder 사용 시)
+                context_id = None
                 if self.use_context_binder:
-                    # Context ID 할당
                     context_id = self.context_binder.get_context_id(self.external_state)
-                    
-                    # Place + Context 조합으로 bias 업데이트
-                    self.context_binder.update_context_memory(
-                        place_id=place_id,
-                        context_id=context_id,
-                        bias=drift,
-                        current_time=self.state.t_ms,
-                        learning_rate=self.bias_learning_rate
-                    )
-                    
-                    # ✅ 중요: Place Memory도 함께 업데이트 (bias_history 쌓기 위해) ✨ NEW
-                    # Context Binder를 사용하더라도 Place Memory의 bias_history는 필요함 (Replay/Consolidation용)
-                    self.place_manager.update_place_memory(
-                        place_id=place_id,
-                        phase_vector=phase_vector,
-                        bias=drift,  # 같은 drift를 Place Memory에도 기록
-                        current_time=self.state.t_ms,
-                        learning_rate=self.bias_learning_rate
-                    )
-                else:
-                    # Place만 사용 (Context 없음)
-                    self.place_manager.update_place_memory(
-                        place_id=place_id,
-                        phase_vector=phase_vector,
-                        bias=drift,
-                        current_time=self.state.t_ms,
-                        learning_rate=self.bias_learning_rate
-                    )
                 
-                # 전역 bias도 업데이트 (하위 호환성)
-                self.bias_estimate += self.bias_learning_rate * drift
+                # 현재 속도 및 가속도 계산
+                current_velocity = np.array([
+                    self.state.v_x, self.state.v_y, self.state.v_z,
+                    self.state.v_a, self.state.v_b
+                ])
+                current_acceleration = np.array([
+                    self.state.a_x, self.state.a_y, self.state.a_z,
+                    self.state.alpha_a, self.state.alpha_b
+                ])
+                
+                # 오차 계산
+                error = drift
+                
+                # ✅ Replay Buffer에 기록만 (bias 업데이트 금지) ✨ NEW
+                self.replay_buffer.add_point(
+                    timestamp=self.state.t_ms,
+                    phase_vector=phase_vector,
+                    current_state=current_array,
+                    target_state=target_array,
+                    error=error,
+                    velocity=current_velocity,
+                    acceleration=current_acceleration,
+                    place_id=place_id,
+                    context_id=context_id
+                )
+                # ⚠️ Online phase에서는 bias 업데이트 안 함 (Replay phase에서만 수행)
+            
+            # 전역 bias는 계속 업데이트 (Persistent Bias Estimator)
+            self.bias_estimate += self.bias_learning_rate * drift
             else:
                 # 기존 방식: 전역 bias만 업데이트
                 self.bias_estimate += self.bias_learning_rate * drift
@@ -533,8 +541,8 @@ class Grid5DEngine:
             max_bias = 0.1  # 최대 편향 제한 [m, m, m, deg, deg]
             self.bias_estimate = np.clip(self.bias_estimate, -max_bias, max_bias)
             
-            # ✅ Replay/Consolidation: 휴지기에 기억 재검토 ✨ NEW
-            if self.use_replay_consolidation and self.use_place_cells:
+            # ✅ Replay Phase: 휴지기에 안정적인 구간만 재생하여 학습 ✨ NEW
+            if self.use_replay_consolidation and self.use_place_cells and self.replay_enabled:
                 current_time_ms = self.state.t_ms
                 current_time_s = current_time_ms / 1000.0  # ms → s 변환
                 
@@ -543,24 +551,64 @@ class Grid5DEngine:
                     self.last_update_time_for_replay / 1000.0,
                     current_time_s
                 ):
-                    # 모든 Place Memory에 대해 Replay 수행
-                    # 각 Place Memory에 대해 Consolidation 수행
+                    # ✅ Replay Buffer에서 안정적인 구간만 추출 ✨ NEW
+                    stable_segments = self.replay_buffer.get_stable_segments(
+                        velocity_threshold=0.01,
+                        acceleration_threshold=0.001,
+                        min_segment_length=5
+                    )
+                    
+                    # ✅ 안정적인 구간만 재생하여 Place/Context bias 업데이트 ✨ NEW
                     consolidated_count = 0
-                    for place_id, place_memory in self.place_manager.place_memory.items():
-                        # ✅ Replay phase에서 Learning Gate 확인 ✨ NEW
-                        # Replay phase에서는 학습 조건을 완화하여 Consolidation 수행
-                        if self.learning_gate.should_learn(
-                            current_state=np.array([
-                                self.state.x, self.state.y, self.state.z,
-                                self.state.theta_a, self.state.theta_b
-                            ]),
-                            place_visit_count=place_memory.visit_count,
-                            is_replay_phase=True  # Replay phase
-                        ):
+                    for segment in stable_segments:
+                        # 각 구간의 Place별로 그룹화
+                        place_groups: Dict[Any, List[TrajectoryPoint]] = {}
+                        for point in segment:
+                            key = point.place_id if point.context_id is None else (point.place_id, point.context_id)
+                            if key not in place_groups:
+                                place_groups[key] = []
+                            place_groups[key].append(point)
+                        
+                        # 각 Place (및 Context)별로 bias 계산 및 업데이트
+                        for key, points in place_groups.items():
+                            if len(points) < 3:  # 최소 3개 포인트 필요
+                                continue
+                            
+                            # 구간의 평균 오차 계산 (안정적인 구간의 진짜 편향)
+                            errors = np.array([p.error for p in points])
+                            mean_error = np.mean(errors, axis=0)
+                            
+                            # Place ID 및 Context ID 추출
+                            if isinstance(key, tuple):
+                                place_id, context_id = key
+                            else:
+                                place_id = key
+                                context_id = None
+                            
+                            # ✅ Replay phase에서만 Place/Context bias 업데이트 ✨ NEW
+                            if self.use_context_binder and context_id is not None:
+                                # Place + Context 조합으로 bias 업데이트
+                                self.context_binder.update_context_memory(
+                                    place_id=place_id,
+                                    context_id=context_id,
+                                    bias=mean_error,
+                                    current_time=current_time_s * 1000.0,  # ms로 변환
+                                    learning_rate=self.bias_learning_rate
+                                )
+                            
+                            # Place Memory 업데이트
+                            phase_vector = points[0].phase_vector  # 첫 포인트의 위상 사용
+                            place_memory = self.place_manager.get_place_memory(place_id)
+                            place_memory.update_bias(
+                                new_bias=mean_error,
+                                learning_rate=self.bias_learning_rate
+                            )
+                            place_memory.add_bias_to_history(mean_error)
+                            place_memory.last_update_time = current_time_s
+                            
+                            # Consolidation 수행
                             if self.replay_consolidation.consolidate_place_memory(place_memory, current_time_s):
                                 consolidated_count += 1
-                    # 디버깅용 (필요시 출력)
-                    # print(f"Replay/Consolidation: {replay_stats}")
                 
                 # 마지막 업데이트 시간 기록
                 self.last_update_time_for_replay = current_time_ms
