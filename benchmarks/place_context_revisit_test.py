@@ -119,14 +119,17 @@ def run_episode(
     n_steps: int,
     adapter: Optional[GridAdapter] = None,
     external_state: Optional[Dict] = None,
+    injected_bias: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, List[float]]:
     external_state = external_state or {}
     state = setpoint.copy()
     pid = PIDController()
     errors: List[float] = []
+    injected_bias = injected_bias if injected_bias is not None else np.zeros(5)
 
     for _ in range(n_steps):
-        state += np.random.normal(0, 1e-4, 5)
+        # 관측 노이즈(고주파) + 구조적 편향(저주파) 주입
+        state += np.random.normal(0, 1e-4, 5) + injected_bias
         if controller == "pid":
             u = pid.control(setpoint, state)
         else:
@@ -150,28 +153,34 @@ def main():
     steps_move = 80
     steps_return = 120
 
+    # ✅ 핵심: Place/Replay가 \"학습해서 이득\"을 보려면
+    # 재방문 대상 Place(A)에만 구조적 편향(저주파 drift)을 지속 주입해야 함
+    # (노이즈만 있으면 학습해도 이득이 거의 없음)
+    A_BIAS = np.array([2e-4, 0.0, 0.0, 0.0, 0.0])  # A 구간에만 x축 +0.0002m/step
+    B_BIAS = np.zeros(5)  # B 구간은 편향 없음
+
     # PID only
-    _, _ = run_episode("pid", A, steps_warm)
-    _, _ = run_episode("pid", B, steps_move)
-    _, err_pid_A2 = run_episode("pid", A, steps_return)
+    _, _ = run_episode("pid", A, steps_warm, injected_bias=A_BIAS)
+    _, _ = run_episode("pid", B, steps_move, injected_bias=B_BIAS)
+    _, err_pid_A2 = run_episode("pid", A, steps_return, injected_bias=A_BIAS)
 
     # Persistent Bias only
     pb = GridAdapter(A, enable_place=False, enable_context=False, replay_enabled=False)
-    _, _ = run_episode("grid", A, steps_warm, pb, external_state={"op": "A"})
-    _, _ = run_episode("grid", B, steps_move, pb, external_state={"op": "B"})
-    _, err_pb_A2 = run_episode("grid", A, steps_return, pb, external_state={"op": "A"})
+    _, _ = run_episode("grid", A, steps_warm, pb, external_state={"op": "A"}, injected_bias=A_BIAS)
+    _, _ = run_episode("grid", B, steps_move, pb, external_state={"op": "B"}, injected_bias=B_BIAS)
+    _, err_pb_A2 = run_episode("grid", A, steps_return, pb, external_state={"op": "A"}, injected_bias=A_BIAS)
 
     # Place + Replay
     pc = GridAdapter(A, enable_place=True, enable_context=False, replay_enabled=True)
-    _, _ = run_episode("grid", A, steps_warm, pc, external_state={"op": "A"})
+    _, _ = run_episode("grid", A, steps_warm, pc, external_state={"op": "A"}, injected_bias=A_BIAS)
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500
         pc.grid.update(A)
-    _, _ = run_episode("grid", B, steps_move, pc, external_state={"op": "B"})
+    _, _ = run_episode("grid", B, steps_move, pc, external_state={"op": "B"}, injected_bias=B_BIAS)
     if hasattr(pc.grid, "state"):
         pc.grid.state.t_ms += 2500
         pc.grid.update(B)
-    _, err_pc_A2 = run_episode("grid", A, steps_return, pc, external_state={"op": "A"})
+    _, err_pc_A2 = run_episode("grid", A, steps_return, pc, external_state={"op": "A"}, injected_bias=A_BIAS)
 
     def summarize(err: List[float]) -> Tuple[float, float]:
         arr = np.array(err)
