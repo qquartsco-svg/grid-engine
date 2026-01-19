@@ -83,6 +83,7 @@ class GridAdapter:
             initial_theta_b=setpoint[4],
         )
         self.grid.set_target(setpoint)
+        self._last_setpoint = setpoint.copy()
         self.grid.use_place_cells = enable_place
         self.grid.use_context_binder = enable_context
         if hasattr(self.grid, "replay_enabled"):
@@ -92,6 +93,14 @@ class GridAdapter:
         self.slow_update_cycle = 5
 
     def step(self, setpoint: np.ndarray, current: np.ndarray, external_state: Dict) -> np.ndarray:
+        # ✅ 중요: 외부 setpoint 변경을 GridEngine 내부 target(stable_state)에도 동기화
+        # set_target()은 bias_estimate를 리셋하므로, 시나리오 상 '목표 변경' 시점에만 호출
+        if not np.allclose(setpoint, self._last_setpoint):
+            self.grid.set_target(setpoint)
+            self._last_setpoint = setpoint.copy()
+            # PID 적분항도 리셋(목표 변경 시 windup 방지)
+            self.pid.reset()
+
         self.step_counter += 1
         if self.step_counter % self.slow_update_cycle == 0:
             if hasattr(self.grid, "set_external_state"):
