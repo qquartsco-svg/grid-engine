@@ -736,10 +736,15 @@ class Grid5DEngine:
                 # Place + Context 조합의 bias 추정값 반환
                 context_bias = self.context_binder.get_bias_estimate(place_id, context_id)
                 reference_correction = -context_bias
-                reference_correction = -context_bias
             else:
                 # Place만 사용 (Context 없음)
-                place_bias = self.place_manager.get_bias_estimate(phase_vector)
+                # ✅ Place Blending 사용 (Soft-Switching) ✨ NEW
+                place_bias = self.place_manager.get_bias_estimate(
+                    phase_vector,
+                    use_blending=True,  # Soft-Switching 활성화
+                    top_k=5,  # 상위 5개 Place Cell 사용
+                    sigma=0.5  # 가우시안 표준 편차
+                )
                 reference_correction = -place_bias
         else:
             # 기존 방식: 전역 bias 반환
