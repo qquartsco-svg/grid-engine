@@ -881,3 +881,15 @@ python3 benchmarks/repeatability_test.py
 
 ⚠️ **주의**: 이 프로젝트는 지속적으로 검증되고 개선되고 있습니다. 벤치마크 결과는 초기 검증 결과이며, 추가 테스트와 최적화가 진행 중입니다.
 
+---
+
+## 🧠 Memory Layers (Concept Alignment)
+
+This project uses the same **memory-layer taxonomy** as the Brain Atlas:
+
+- **L0** Ring Attractor → **Neural Intrinsic Memory** (local attractor dynamics)
+- **L1** Grid Engine → **Spatial State Representation**
+- **L2** Hippo Memory → **Contextual / Place Memory**
+- **L3** Cerebellum → **Motor Pattern Optimizer**
+
+See: `~/Desktop/Brain_Atlas/CONCEPTS_MEMORY_LAYERS.md`
